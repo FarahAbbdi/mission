@@ -39,7 +39,7 @@ export function EmailStep({
 
       <button
         type="button"
-        className="w-full text-sm underline text-center"
+        className="w-full text-sm underline underline-offset-2 hover:underline-offset-4 text-center transition-all"
         onClick={onSignup}
       >
         CREATE ACCOUNT

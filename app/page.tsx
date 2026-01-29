@@ -66,10 +66,10 @@ export default function AuthPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center px-6">
-      <div className="w-full max-w-md space-y-8">
+      <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-3">
           <h1 className="text-7xl font-black tracking-tight">MISSION</h1>
-          <p className="text-[18px] text-gray-500">Track. Progress. Achieve.</p>
+          <p className="text-2xl text-gray-500">Track. Progress. Achieve.</p>
         </div>
 
         {step === "email" && (

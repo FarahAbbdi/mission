@@ -28,7 +28,7 @@ export function LoginStep({
           <span className="text-sm truncate">{email}</span>
           <button
             type="button"
-            className="text-sm underline"
+            className="text-sm underline underline-offset-2 hover:underline-offset-4"
             onClick={onChangeEmail}
           >
             CHANGE
