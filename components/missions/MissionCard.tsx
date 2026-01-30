@@ -74,7 +74,7 @@ export default function MissionCard({
       <button
         type="button"
         onClick={onClick}
-        className="relative z-10 w-full text-left border-2 border-black bg-white p-6"
+        className="relative z-10 w-full text-left border-2 border-black bg-white px-6 py-8"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4">

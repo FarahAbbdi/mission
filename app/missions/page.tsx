@@ -12,11 +12,28 @@ function EmptySubSection({ title }: { title: string }) {
         {title}
       </h3>
 
-      <div className="w-full border-2 border-dashed border-gray-300 py-14 flex items-center justify-center">
+      <div className="w-full border-2 border-dashed border-gray-300 py-10 flex items-center justify-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
           Nothing here yet
         </p>
       </div>
+    </div>
+  );
+}
+
+function SubSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-6">
+      <h3 className="text-sm font-black uppercase tracking-wide text-gray-700">
+        {title}
+      </h3>
+      {children}
     </div>
   );
 }
@@ -33,7 +50,6 @@ export default function MissionsPage() {
     <main className="px-14 pt-6 pb-20 space-y-10">
       <MissionControlHeader onLogout={handleLogout} />
 
-      {/* Thick divider */}
       <div className="w-full border-b-4 border-black" />
 
       {/* ================= MY MISSIONS ================= */}
@@ -44,12 +60,7 @@ export default function MissionsPage() {
 
         <div className="w-full border-b-2 border-black" />
 
-        {/* ACTIVE */}
-        <div className="space-y-6">
-          <h3 className="text-sm font-black uppercase tracking-wide text-gray-700">
-            ACTIVE
-          </h3>
-
+        <SubSection title="ACTIVE">
           <MissionCard
             title="Launch New Product"
             status="ACTIVE"
@@ -57,7 +68,7 @@ export default function MissionsPage() {
             dateRangeText="31/12/2025 - 31/03/2026"
             watchers={["A", "B"]}
           />
-        </div>
+        </SubSection>
 
         <EmptySubSection title="COMPLETED" />
         <EmptySubSection title="UNSATISFIED" />
@@ -71,12 +82,7 @@ export default function MissionsPage() {
 
         <div className="w-full border-b-2 border-black" />
 
-        {/* ACTIVE */}
-        <div className="space-y-6">
-          <h3 className="text-sm font-black uppercase tracking-wide text-gray-700">
-            ACTIVE
-          </h3>
-
+        <SubSection title="ACTIVE">
           <MissionCard
             title="Team Project Alpha"
             status="ACTIVE"
@@ -84,7 +90,7 @@ export default function MissionsPage() {
             dateRangeText="15/01/2026 - 16/03/2026"
             watchers={["B"]}
           />
-        </div>
+        </SubSection>
 
         <EmptySubSection title="COMPLETED" />
         <EmptySubSection title="EXPIRED" />

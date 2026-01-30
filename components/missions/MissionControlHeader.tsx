@@ -109,7 +109,7 @@ export default function MissionControlHeader({ onNewMission, onLogout }: Props) 
     >
       {/* Title */}
       <div className="space-y-1">
-        <h1 className="text-6xl sm:text-6xl lg:text-6xl font-black tracking-tight">
+        <h1 className="text-[3.5rem] font-black tracking-tight leading-none">
           MISSION CONTROL
         </h1>
 
