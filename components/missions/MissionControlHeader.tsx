@@ -96,60 +96,57 @@ function LogoutIcon() {
 
 export default function MissionControlHeader({ onNewMission, onLogout }: Props) {
   return (
-    <header
-      className="
-        w-full
-        flex flex-col gap-6
-
-        items-center text-center
-        sm:items-center sm:text-center
-
-        lg:flex-row lg:items-center lg:justify-between lg:text-left
-      "
-    >
-      {/* Title */}
-      <div className="space-y-1">
-        <h1 className="text-[3.5rem] font-black tracking-tight leading-none">
-          MISSION CONTROL
-        </h1>
-
-        <p className="text-lg sm:text-2xl lg:text-2xl text-gray-500">
-          Track your progress. Achieve your goals.
-        </p>
-      </div>
-
-      {/* Buttons
-          - base: stacked
-          - sm: row (same level) and centered
-          - lg: stays row (same level) aligned right
-      */}
-      <div
+    <div className="w-full space-y-8">
+      <header
         className="
-          flex flex-col items-center gap-3
-
-          sm:flex-row sm:justify-center sm:gap-4
-
-          lg:justify-end
+          w-full
+          flex flex-col gap-6
+          items-center text-center
+          sm:items-center sm:text-center
+          lg:flex-row lg:items-center lg:justify-between lg:text-left
         "
       >
-        <BrutalHeaderButton
-          widthClass="sm:w-[230px]"
-          variant="solid"
-          onClick={onNewMission}
-          icon={<PlusIcon />}
-        >
-          NEW MISSION
-        </BrutalHeaderButton>
+        {/* Title */}
+        <div className="space-y-1">
+          <h1 className="text-[3.5rem] font-black tracking-tight leading-none">
+            MISSION CONTROL
+          </h1>
 
-        <BrutalHeaderButton
-          widthClass="sm:w-[180px]"
-          variant="outline"
-          onClick={onLogout}
-          icon={<LogoutIcon />}
+          <p className="text-lg sm:text-2xl lg:text-2xl text-gray-500">
+            Track your progress. Achieve your goals.
+          </p>
+        </div>
+
+        {/* Buttons */}
+        <div
+          className="
+            flex flex-col items-center gap-3
+            sm:flex-row sm:justify-center sm:gap-4
+            lg:justify-end
+          "
         >
-          LOGOUT
-        </BrutalHeaderButton>
-      </div>
-    </header>
+          <BrutalHeaderButton
+            widthClass="sm:w-[230px]"
+            variant="solid"
+            onClick={onNewMission}
+            icon={<PlusIcon />}
+          >
+            NEW MISSION
+          </BrutalHeaderButton>
+
+          <BrutalHeaderButton
+            widthClass="sm:w-[180px]"
+            variant="outline"
+            onClick={onLogout}
+            icon={<LogoutIcon />}
+          >
+            LOGOUT
+          </BrutalHeaderButton>
+        </div>
+      </header>
+
+      {/* Divider grouped with header */}
+      <div className="w-full border-b-4 border-black" />
+    </div>
   );
 }

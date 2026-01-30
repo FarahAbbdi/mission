@@ -38,6 +38,15 @@ function SubSection({
   );
 }
 
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-3xl font-black tracking-tight">{title}</h2>
+      <div className="w-full border-b-2 border-black" />
+    </div>
+  );
+}
+
 export default function MissionsPage() {
   const router = useRouter();
 
@@ -47,18 +56,12 @@ export default function MissionsPage() {
   }
 
   return (
-    <main className="px-14 pt-6 pb-20 space-y-10">
+    <main className="px-14 pt-6 pb-20 space-y-12">
       <MissionControlHeader onLogout={handleLogout} />
-
-      <div className="w-full border-b-4 border-black" />
 
       {/* ================= MY MISSIONS ================= */}
       <section className="space-y-8">
-        <h2 className="text-3xl font-black tracking-tight">
-          MY MISSIONS
-        </h2>
-
-        <div className="w-full border-b-2 border-black" />
+        <SectionHeader title="MY MISSIONS" />
 
         <SubSection title="ACTIVE">
           <MissionCard
@@ -76,11 +79,7 @@ export default function MissionsPage() {
 
       {/* ================= WATCHING ================= */}
       <section className="space-y-8">
-        <h2 className="text-3xl font-black tracking-tight">
-          WATCHING
-        </h2>
-
-        <div className="w-full border-b-2 border-black" />
+        <SectionHeader title="WATCHING" />
 
         <SubSection title="ACTIVE">
           <MissionCard
