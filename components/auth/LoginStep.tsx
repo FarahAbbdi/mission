@@ -24,7 +24,7 @@ export function LoginStep({
           Your Email
         </label>
 
-        <div className="border bg-gray-100 px-6 py-5 flex justify-between items-center">
+        <div className="border-[1.5px] bg-gray-100 px-6 py-5 flex justify-between items-center">
           <span className="text-sm truncate">{email}</span>
           <button
             type="button"

@@ -31,7 +31,7 @@ export function TextInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border p-4 outline-none focus:border-black"
+        className="w-full border-[1.5px] p-4 outline-none focus:border-black"
       />
     </div>
   );
