@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+
 import MissionControlHeader from "@/components/missions/MissionControlHeader";
 import MissionCard from "@/components/missions/MissionCard";
+import MissionModal from "@/components/missions/MissionModal";
 
 function EmptySubSection({ title }: { title: string }) {
   return (
@@ -49,6 +52,7 @@ function SectionHeader({ title }: { title: string }) {
 
 export default function MissionsPage() {
   const router = useRouter();
+  const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -57,7 +61,10 @@ export default function MissionsPage() {
 
   return (
     <main className="px-14 pt-6 pb-20 space-y-12">
-      <MissionControlHeader onLogout={handleLogout} />
+      <MissionControlHeader
+        onNewMission={() => setIsMissionModalOpen(true)}
+        onLogout={handleLogout}
+      />
 
       {/* ================= MY MISSIONS ================= */}
       <section className="space-y-8">
@@ -94,6 +101,17 @@ export default function MissionsPage() {
         <EmptySubSection title="COMPLETED" />
         <EmptySubSection title="EXPIRED" />
       </section>
+
+      {/* ================= CREATE MISSION MODAL ================= */}
+      <MissionModal
+        open={isMissionModalOpen}
+        onClose={() => setIsMissionModalOpen(false)}
+        onCreate={(payload) => {
+          // For now just confirm the wiring works:
+          console.log("CREATE MISSION:", payload);
+          // Next step: insert into Supabase missions table.
+        }}
+      />
     </main>
   );
 }
