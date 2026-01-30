@@ -19,7 +19,7 @@ function BrutalHeaderButton({
   children: React.ReactNode;
 }) {
   const baseButton =
-    "relative z-10 w-full border-2 border-black px-6 py-3 sm:px-7 sm:py-3.5 text-base font-semibold uppercase tracking-wide transition-colors flex items-center justify-center gap-3 sm:gap-4";
+    "relative z-10 w-full border-2 border-black px-6 py-3 text-base font-semibold uppercase tracking-wide transition-colors flex items-center justify-center gap-3";
 
   const variantClass =
     variant === "solid"
@@ -94,33 +94,46 @@ function LogoutIcon() {
   );
 }
 
-export default function MissionControlHeader({
-  onNewMission,
-  onLogout,
-}: Props) {
+export default function MissionControlHeader({ onNewMission, onLogout }: Props) {
   return (
     <header
       className="
         w-full
-        flex flex-col items-center text-center gap-6
-        sm:flex-row sm:items-center sm:justify-between sm:text-left
+        flex flex-col gap-6
+
+        items-center text-center
+        sm:items-center sm:text-center
+
+        lg:flex-row lg:items-center lg:justify-between lg:text-left
       "
     >
       {/* Title */}
       <div className="space-y-1">
-        <h1 className="text-[2.5rem] sm:text-5xl lg:text-6xl font-black tracking-tight">
+        <h1 className="text-5xl sm:text-6xl lg:text-6xl font-black tracking-tight">
           MISSION CONTROL
         </h1>
 
-        <p className="text-base sm:text-lg lg:text-2xl text-gray-500">
+        <p className="text-lg sm:text-2xl lg:text-2xl text-gray-500">
           Track your progress. Achieve your goals.
         </p>
       </div>
 
-      {/* Buttons */}
-      <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+      {/* Buttons
+          - base: stacked
+          - sm: row (same level) and centered
+          - lg: stays row (same level) aligned right
+      */}
+      <div
+        className="
+          flex flex-col items-center gap-3
+
+          sm:flex-row sm:justify-center sm:gap-4
+
+          lg:justify-end
+        "
+      >
         <BrutalHeaderButton
-          widthClass="w-full sm:w-[230px]"
+          widthClass="sm:w-[230px]"
           variant="solid"
           onClick={onNewMission}
           icon={<PlusIcon />}
@@ -129,7 +142,7 @@ export default function MissionControlHeader({
         </BrutalHeaderButton>
 
         <BrutalHeaderButton
-          widthClass="w-full sm:w-[180px]"
+          widthClass="sm:w-[180px]"
           variant="outline"
           onClick={onLogout}
           icon={<LogoutIcon />}
