@@ -29,7 +29,7 @@ export default function MissionsPage() {
   }
 
   return (
-    <main className="px-14 py-6 space-y-10">
+    <main className="px-14 pt-6 pb-20 space-y-10">
       <MissionControlHeader onLogout={handleLogout} />
 
       {/* Thick divider */}
