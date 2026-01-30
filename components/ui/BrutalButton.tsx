@@ -1,40 +1,41 @@
+"use client";
+
 type Props = {
   children: React.ReactNode;
   onClick?: () => void;
-  disabled?: boolean;
   type?: "button" | "submit";
+  variant?: "solid" | "outline";
 };
 
 export function BrutalButton({
   children,
   onClick,
-  disabled,
   type = "button",
+  variant = "solid",
 }: Props) {
+  const solid = variant === "solid";
+
   return (
-    <div className="relative w-full group">
-      <div
-        className="
-          absolute inset-0 bg-black
-          opacity-0 translate-x-0 translate-y-0
-          transition-all duration-100
-          group-hover:opacity-100
-          group-hover:translate-x-2 group-hover:translate-y-2
-        "
-        aria-hidden="true"
-      />
+    <div className="relative group w-full">
+      {/* brutal shadow layer */}
+      <div className="absolute inset-0 bg-black translate-x-1 translate-y-1 group-hover:translate-x-2 group-hover:translate-y-2 transition-transform" />
 
       <button
         type={type}
         onClick={onClick}
-        disabled={disabled}
-        className="
+        className={`
           relative z-10 w-full
-          bg-black text-white font-semibold uppercase
-          px-6 py-4
-          disabled:opacity-50 disabled:cursor-not-allowed
-          focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2
-        "
+          px-6 py-3
+          font-semibold uppercase tracking-wide
+          flex items-center justify-center gap-2
+          border-2 border-black
+          transition-colors
+          ${
+            solid
+              ? "bg-black text-white"
+              : "bg-white text-black hover:bg-black hover:text-white"
+          }
+        `}
       >
         {children}
       </button>
