@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import MissionControlHeader from "@/components/missions/MissionControlHeader";
+import MissionCard from "@/components/missions/MissionCard";
 
-function SubSection({ title }: { title: string }) {
+function EmptySubSection({ title }: { title: string }) {
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-black uppercase tracking-wide text-gray-700">
@@ -43,9 +44,23 @@ export default function MissionsPage() {
 
         <div className="w-full border-b-2 border-black" />
 
-        <SubSection title="ACTIVE" />
-        <SubSection title="COMPLETED" />
-        <SubSection title="UNSATISFIED" />
+        {/* ACTIVE */}
+        <div className="space-y-6">
+          <h3 className="text-sm font-black uppercase tracking-wide text-gray-700">
+            ACTIVE
+          </h3>
+
+          <MissionCard
+            title="Launch New Product"
+            status="ACTIVE"
+            milestonesText="1 / 3 Milestones"
+            dateRangeText="31/12/2025 - 31/03/2026"
+            watchers={["A", "B"]}
+          />
+        </div>
+
+        <EmptySubSection title="COMPLETED" />
+        <EmptySubSection title="UNSATISFIED" />
       </section>
 
       {/* ================= WATCHING ================= */}
@@ -56,9 +71,23 @@ export default function MissionsPage() {
 
         <div className="w-full border-b-2 border-black" />
 
-        <SubSection title="ACTIVE" />
-        <SubSection title="COMPLETED" />
-        <SubSection title="EXPIRED" />
+        {/* ACTIVE */}
+        <div className="space-y-6">
+          <h3 className="text-sm font-black uppercase tracking-wide text-gray-700">
+            ACTIVE
+          </h3>
+
+          <MissionCard
+            title="Team Project Alpha"
+            status="ACTIVE"
+            milestonesText="1 / 1 Milestones"
+            dateRangeText="15/01/2026 - 16/03/2026"
+            watchers={["B"]}
+          />
+        </div>
+
+        <EmptySubSection title="COMPLETED" />
+        <EmptySubSection title="EXPIRED" />
       </section>
     </main>
   );
