@@ -50,6 +50,14 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
+function MissionGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+      {children}
+    </div>
+  );
+}
+
 export default function MissionsPage() {
   const router = useRouter();
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
@@ -71,13 +79,32 @@ export default function MissionsPage() {
         <SectionHeader title="MY MISSIONS" />
 
         <SubSection title="ACTIVE">
-          <MissionCard
-            title="Launch New Product"
-            status="ACTIVE"
-            milestonesText="1 / 3 Milestones"
-            dateRangeText="31/12/2025 - 31/03/2026"
-            watchers={["A", "B"]}
-          />
+          <MissionGrid>
+            <MissionCard
+              title="Launch New Product"
+              status="ACTIVE"
+              milestonesText="1 / 3 Milestones"
+              dateRangeText="31/12/2025 - 31/03/2026"
+              watchers={["A", "B"]}
+            />
+
+            <MissionCard
+              title="Launch New Product"
+              status="ACTIVE"
+              milestonesText="1 / 3 Milestones"
+              dateRangeText="31/12/2025 - 31/03/2026"
+              watchers={["A", "B"]}
+            />
+
+            <MissionCard
+              title="Launch New Product"
+              status="ACTIVE"
+              milestonesText="1 / 3 Milestones"
+              dateRangeText="31/12/2025 - 31/03/2026"
+              watchers={["A", "B"]}
+            />
+          </MissionGrid>
+          
         </SubSection>
 
         <EmptySubSection title="COMPLETED" />
@@ -89,17 +116,19 @@ export default function MissionsPage() {
         <SectionHeader title="WATCHING" />
 
         <SubSection title="ACTIVE">
-          <MissionCard
-            title="Team Project Alpha"
-            status="ACTIVE"
-            milestonesText="1 / 1 Milestones"
-            dateRangeText="15/01/2026 - 16/03/2026"
-            watchers={["B"]}
-          />
+          <MissionGrid>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <MissionCard
+                key={i}
+                title={`Mission ${i + 1}`}
+                status="ACTIVE"
+                milestonesText="1 / 3 Milestones"
+                dateRangeText="31/12/2025 - 31/03/2026"
+                watchers={["A", "B"]}
+              />
+            ))}
+          </MissionGrid>
         </SubSection>
-
-        <EmptySubSection title="COMPLETED" />
-        <EmptySubSection title="EXPIRED" />
       </section>
 
       {/* ================= CREATE MISSION MODAL ================= */}

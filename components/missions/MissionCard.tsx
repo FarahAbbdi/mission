@@ -68,7 +68,7 @@ export default function MissionCard({
   onClick,
 }: Props) {
   return (
-    <div className="relative group w-full max-w-[400px]">
+    <div className="relative group w-full max-w-[420px]">
       <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-100 group-hover:translate-x-2.5 group-hover:translate-y-2.5 transition-all" />
 
       <button
