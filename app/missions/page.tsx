@@ -129,6 +129,9 @@ export default function MissionsPage() {
             ))}
           </MissionGrid>
         </SubSection>
+        
+        <EmptySubSection title="COMPLETED" />
+        <EmptySubSection title="UNSATISFIED" />
       </section>
 
       {/* ================= CREATE MISSION MODAL ================= */}
