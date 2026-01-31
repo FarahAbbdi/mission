@@ -10,13 +10,13 @@ import MissionModal from "@/components/missions/MissionModal";
 
 function EmptySubSection({ title }: { title: string }) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-black uppercase tracking-wide text-gray-700">
+    <div className="space-y-3">
+      <h3 className="text-xs font-black uppercase tracking-wide text-gray-700">
         {title}
       </h3>
 
-      <div className="w-full border-2 border-dashed border-gray-300 py-10 flex items-center justify-center">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+      <div className="w-full border-2 border-dashed border-gray-300 py-10 min-h-[120px] flex items-center justify-center">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
           Nothing here yet
         </p>
       </div>
@@ -32,8 +32,8 @@ function SubSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-6">
-      <h3 className="text-sm font-black uppercase tracking-wide text-gray-700">
+    <div className="space-y-4">
+      <h3 className="text-xs font-black uppercase tracking-wide text-gray-700">
         {title}
       </h3>
       {children}
@@ -43,7 +43,7 @@ function SubSection({
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <h2 className="text-3xl font-black tracking-tight">{title}</h2>
       <div className="w-full border-b-2 border-black" />
     </div>
@@ -60,14 +60,14 @@ export default function MissionsPage() {
   }
 
   return (
-    <main className="px-14 pt-6 pb-20 space-y-12">
+    <main className="px-10 pt-5 pb-16 space-y-10">
       <MissionControlHeader
         onNewMission={() => setIsMissionModalOpen(true)}
         onLogout={handleLogout}
       />
 
       {/* ================= MY MISSIONS ================= */}
-      <section className="space-y-8">
+      <section className="space-y-6">
         <SectionHeader title="MY MISSIONS" />
 
         <SubSection title="ACTIVE">
@@ -85,7 +85,7 @@ export default function MissionsPage() {
       </section>
 
       {/* ================= WATCHING ================= */}
-      <section className="space-y-8">
+      <section className="space-y-6">
         <SectionHeader title="WATCHING" />
 
         <SubSection title="ACTIVE">
@@ -107,9 +107,7 @@ export default function MissionsPage() {
         open={isMissionModalOpen}
         onClose={() => setIsMissionModalOpen(false)}
         onCreate={(payload) => {
-          // For now just confirm the wiring works:
           console.log("CREATE MISSION:", payload);
-          // Next step: insert into Supabase missions table.
         }}
       />
     </main>

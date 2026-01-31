@@ -19,7 +19,7 @@ function BrutalHeaderButton({
   children: React.ReactNode;
 }) {
   const baseButton =
-    "relative z-10 w-full border-2 border-black px-6 py-3 text-base font-semibold uppercase tracking-wide transition-colors flex items-center justify-center gap-3";
+    "relative z-10 w-full border-2 border-black px-5 py-2.5 text-sm font-semibold uppercase tracking-wide transition-colors flex items-center justify-center gap-3";
 
   const variantClass =
     variant === "solid"
@@ -45,8 +45,8 @@ function BrutalHeaderButton({
 function PlusIcon() {
   return (
     <svg
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden="true"
@@ -65,8 +65,8 @@ function PlusIcon() {
 function LogoutIcon() {
   return (
     <svg
-      width="20"
-      height="20"
+      width="18"
+      height="18"
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden="true"
@@ -96,11 +96,11 @@ function LogoutIcon() {
 
 export default function MissionControlHeader({ onNewMission, onLogout }: Props) {
   return (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-6">
       <header
         className="
           w-full
-          flex flex-col gap-6
+          flex flex-col gap-5
           items-center text-center
           sm:items-center sm:text-center
           lg:flex-row lg:items-center lg:justify-between lg:text-left
@@ -108,11 +108,11 @@ export default function MissionControlHeader({ onNewMission, onLogout }: Props) 
       >
         {/* Title */}
         <div className="space-y-1">
-          <h1 className="text-[3.5rem] font-black tracking-tight leading-none">
+          <h1 className="text-[3.1rem] font-black tracking-tight leading-none">
             MISSION CONTROL
           </h1>
 
-          <p className="text-lg sm:text-2xl lg:text-2xl text-gray-500">
+          <p className="text-base sm:text-xl text-gray-500">
             Track your progress. Achieve your goals.
           </p>
         </div>
@@ -126,7 +126,7 @@ export default function MissionControlHeader({ onNewMission, onLogout }: Props) 
           "
         >
           <BrutalHeaderButton
-            widthClass="sm:w-[230px]"
+            widthClass="sm:w-[210px]"
             variant="solid"
             onClick={onNewMission}
             icon={<PlusIcon />}
@@ -135,7 +135,7 @@ export default function MissionControlHeader({ onNewMission, onLogout }: Props) 
           </BrutalHeaderButton>
 
           <BrutalHeaderButton
-            widthClass="sm:w-[180px]"
+            widthClass="sm:w-[160px]"
             variant="outline"
             onClick={onLogout}
             icon={<LogoutIcon />}
