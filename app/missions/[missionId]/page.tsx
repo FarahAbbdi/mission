@@ -48,7 +48,7 @@ export default function MissionDetailPage() {
             </div>
 
             {/* Right column */}
-            <div className="flex-1 pl-10 pt-10">
+            <div className="flex-1 pl-10 pt-10 pb-15">
               <MilestonesSection
                 onAddMilestone={() =>
                   console.log("[ui] add milestone")
