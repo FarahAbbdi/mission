@@ -2,6 +2,7 @@
 
 import MissionDetailTopBar from "@/components/missions/MissionDetailTopBar";
 import MissionDetailHeader from "@/components/missions/MissionDetailHeader";
+import MilestonesSection from "@/components/missions/MilestonesSection";
 
 export default function MissionDetailPage() {
   return (
@@ -11,45 +12,48 @@ export default function MissionDetailPage() {
         <MissionDetailTopBar />
       </div>
 
-      {/* Main content area: always fills remaining viewport height */}
+      {/* Main content */}
       <section className="relative flex-1">
-        {/* Full-height right-side background */}
+        {/* Right-side background (BEHIND content) */}
         <div
           className="
             absolute inset-y-0
             left-[38%]
             right-0
             bg-gray-50
-            pointer-events-none
+            z-0
           "
         />
 
-        {/* Full-height vertical divider */}
+        {/* Vertical divider */}
         <div
           className="
             absolute inset-y-0
             left-[38%]
             w-[4px]
             bg-black
-            pointer-events-none
+            z-10
           "
         />
 
-        {/* Actual content columns */}
-        <div className="h-full px-12">
+        {/* Content */}
+        <div className="relative z-20 h-full px-12">
           <div className="flex h-full">
-            {/* Left column (Mission details) */}
+            {/* Left column */}
             <div className="w-[38%] pr-10 pt-10 space-y-10">
               <MissionDetailHeader
                 title="Launch New Product"
                 statusLabel="ACTIVE"
               />
-              {/* more mission detail sections later */}
             </div>
 
-            {/* Right column (Milestones) */}
+            {/* Right column */}
             <div className="flex-1 pl-10 pt-10">
-              {/* milestones later */}
+              <MilestonesSection
+                onAddMilestone={() =>
+                  console.log("[ui] add milestone")
+                }
+              />
             </div>
           </div>
         </div>
