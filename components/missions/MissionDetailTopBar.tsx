@@ -41,7 +41,7 @@ export default function MissionDetailTopBar({
   const router = useRouter();
 
   return (
-    <div className="pt-6 pb-6 space-y-6">
+    <div className="pt-6 space-y-6">
       {/* Back control */}
       <div
         role="button"
