@@ -33,20 +33,20 @@ type MissionRow = {
 function EmptyPlaceholder({ label }: { label: string }) {
   return (
     <div className="w-full border-2 border-dashed border-gray-300 py-10 min-h-[220px] flex items-center justify-center">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 text-center">
         {label}
       </p>
     </div>
   );
 }
 
-function EmptySubSection({ title }: { title: string }) {
+function EmptySubSection({ title, label }: { title: string; label: string }) {
   return (
     <div className="space-y-3">
       <h3 className="text-xs font-black uppercase tracking-wide text-gray-700">
         {title}
       </h3>
-      <EmptyPlaceholder label="Nothing here yet" />
+      <EmptyPlaceholder label={label} />
     </div>
   );
 }
@@ -289,7 +289,7 @@ export default function MissionsPage() {
               ))}
             </MissionGrid>
           ) : (
-            <EmptyPlaceholder label="Nothing here yet" />
+            <EmptyPlaceholder label="NO ACTIVE MISSIONS YET" />
           )}
         </SubSection>
 
@@ -310,7 +310,7 @@ export default function MissionsPage() {
             </MissionGrid>
           </SubSection>
         ) : (
-          <EmptySubSection title="COMPLETED" />
+          <EmptySubSection title="COMPLETED" label="NO COMPLETED MISSIONS YET" />
         )}
 
         {/* Your UI uses “UNSATISFIED”, DB uses “expired” */}
@@ -331,16 +331,26 @@ export default function MissionsPage() {
             </MissionGrid>
           </SubSection>
         ) : (
-          <EmptySubSection title="UNSATISFIED" />
+          <EmptySubSection title="UNSATISFIED" label="NO UNSATISFIED MISSIONS YET" />
         )}
       </section>
 
       {/* ================= WATCHING ================= */}
       <section className="space-y-6">
         <SectionHeader title="WATCHING" />
-        <EmptySubSection title="ACTIVE" />
-        <EmptySubSection title="COMPLETED" />
-        <EmptySubSection title="UNSATISFIED" />
+
+        <EmptySubSection
+          title="ACTIVE"
+          label="NO ACTIVE MISSIONS YOU'RE WATCHING"
+        />
+        <EmptySubSection
+          title="COMPLETED"
+          label="NO COMPLETED MISSIONS YOU'RE WATCHING"
+        />
+        <EmptySubSection
+          title="UNSATISFIED"
+          label="NO UNSATISFIED MISSIONS YOU'RE WATCHING"
+        />
       </section>
 
       {/* ================= CREATE MISSION MODAL ================= */}
