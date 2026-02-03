@@ -1,4 +1,7 @@
+"use client";
+
 import MissionDetailTopBar from "@/components/missions/MissionDetailTopBar";
+import MissionDetailHeader from "@/components/missions/MissionDetailHeader";
 
 export default function MissionDetailPage() {
   return (
@@ -10,7 +13,7 @@ export default function MissionDetailPage() {
 
       {/* Main content area: always fills remaining viewport height */}
       <section className="relative flex-1">
-        {/* Full-height right-side background (always visible) */}
+        {/* Full-height right-side background */}
         <div
           className="
             absolute inset-y-0
@@ -21,7 +24,7 @@ export default function MissionDetailPage() {
           "
         />
 
-        {/* Full-height vertical divider (always visible) */}
+        {/* Full-height vertical divider */}
         <div
           className="
             absolute inset-y-0
@@ -35,14 +38,18 @@ export default function MissionDetailPage() {
         {/* Actual content columns */}
         <div className="h-full px-12">
           <div className="flex h-full">
-            {/* Left column */}
-            <div className="w-[38%] pr-10">
-              {/* content later */}
+            {/* Left column (Mission details) */}
+            <div className="w-[38%] pr-10 pt-10 space-y-10">
+              <MissionDetailHeader
+                title="Launch New Product"
+                statusLabel="ACTIVE"
+              />
+              {/* more mission detail sections later */}
             </div>
 
-            {/* Right column */}
-            <div className="flex-1 pl-10">
-              {/* content later */}
+            {/* Right column (Milestones) */}
+            <div className="flex-1 pl-10 pt-10">
+              {/* milestones later */}
             </div>
           </div>
         </div>
