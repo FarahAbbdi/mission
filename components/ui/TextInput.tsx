@@ -20,7 +20,7 @@ export function TextInput({
   return (
     <div className="space-y-1">
       {label && (
-        <label className="text-xs uppercase tracking-wide text-gray-600">
+        <label className="text-[11px] font-black uppercase tracking-wide text-gray-600">
           {label}
         </label>
       )}

@@ -1,7 +1,11 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { BrutalButton } from "@/components/ui/BrutalButton";
 import MilestoneCard from "@/components/missions/MilestoneCard";
+import MilestoneModal, {
+  CreateMilestonePayload,
+} from "@/components/missions/MilestoneModal";
 
 type Props = {
   onAddMilestone?: () => void;
@@ -25,16 +29,42 @@ function EmptyPlaceholder({ text }: { text: string }) {
   );
 }
 
+type DummyMilestone = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  status: "ACTIVE" | "COMPLETED" | "EXPIRED";
+  deadlineText: string;
+  priority: "LOW" | "MEDIUM" | "HIGH";
+  logsCount?: number;
+  checked?: boolean;
+};
+
+function isoToDMY(iso: string) {
+  // "YYYY-MM-DD" -> "DD/MM/YYYY"
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+function priorityToCard(p: "low" | "medium" | "high"): "LOW" | "MEDIUM" | "HIGH" {
+  if (p === "low") return "LOW";
+  if (p === "high") return "HIGH";
+  return "MEDIUM";
+}
+
 export default function MilestonesSection({ onAddMilestone }: Props) {
-  // Dummy data for now (replace with Supabase later)
-  const activeMilestones = [
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+
+  // ✅ keep your dummy state, but store it in state so we can add to it on submit
+  const [activeMilestones, setActiveMilestones] = useState<DummyMilestone[]>([
     {
       id: "m1",
       title: "User Testing Round 1",
       subtitle: "Recruit 10 beta testers",
-      status: "ACTIVE" as const,
+      status: "ACTIVE",
       deadlineText: "01/02/2026",
-      priority: "HIGH" as const,
+      priority: "HIGH",
       logsCount: 1,
       checked: false,
     },
@@ -42,33 +72,64 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
       id: "m2",
       title: "Launch Marketing Campaign",
       subtitle: "Social media, email, blog posts",
-      status: "ACTIVE" as const,
+      status: "ACTIVE",
       deadlineText: "08/02/2026",
-      priority: "MEDIUM" as const,
+      priority: "MEDIUM",
       logsCount: 0,
       checked: false,
     },
-  ];
+  ]);
 
-  const completedMilestones: Array<{
-    id: string;
-    title: string;
-    subtitle?: string;
-    status: "COMPLETED";
-    deadlineText: string;
-    priority: "LOW" | "MEDIUM" | "HIGH";
-    logsCount?: number;
-    checked?: boolean;
-  }> = [];
+  const [completedMilestones, setCompletedMilestones] = useState<DummyMilestone[]>([]);
+
+  const activeCount = useMemo(() => activeMilestones.length, [activeMilestones]);
+  const completedCount = useMemo(() => completedMilestones.length, [completedMilestones]);
+
+  async function handleCreateMilestone(payload: CreateMilestonePayload) {
+    console.group("[createMilestone]");
+    console.log("payload from modal:", payload);
+
+    // ✅ demo behavior: insert into ACTIVE list immediately so you can see it
+    // later replace this with Supabase insert, then reload milestones
+    const newItem: DummyMilestone = {
+      id: `tmp_${Date.now()}`,
+      title: payload.name,
+      subtitle: payload.notes || undefined,
+      status: "ACTIVE",
+      deadlineText: isoToDMY(payload.deadline),
+      priority: priorityToCard(payload.priority),
+      logsCount: 0,
+      checked: false,
+    };
+
+    console.log("optimistically adding dummy milestone:", newItem);
+    setActiveMilestones((prev) => [newItem, ...prev]);
+
+    console.groupEnd();
+    setIsMilestoneModalOpen(false);
+  }
 
   return (
     <section className="space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between gap-6">
-        <h2 className="text-3xl font-black tracking-tight">MILESTONES</h2>
+        <div className="space-y-1">
+          <h2 className="text-3xl font-black tracking-tight">MILESTONES</h2>
+          {/* optional tiny debug count */}
+          <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+            {activeCount} active • {completedCount} completed
+          </div>
+        </div>
 
         <div className="w-[200px]">
-          <BrutalButton variant="outline" onClick={onAddMilestone}>
+          <BrutalButton
+            variant="outline"
+            onClick={() => {
+              console.log("[ui] ADD MILESTONE click");
+              onAddMilestone?.(); // keep your hook for the page
+              setIsMilestoneModalOpen(true);
+            }}
+          >
             <span className="inline-flex items-center gap-2 text-sm">
               <span className="text-base leading-none">+</span>
               ADD MILESTONE
@@ -91,9 +152,11 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
                 status={m.status}
                 deadlineText={m.deadlineText}
                 priority={m.priority}
-                logsCount={m.logsCount}
+                logsCount={m.logsCount ?? 0}
                 checked={m.checked}
-                onToggleChecked={() => console.log("[milestone] toggle checked:", m.id)}
+                onToggleChecked={() =>
+                  console.log("[milestone] toggle checked:", m.id)
+                }
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => console.log("[milestone] delete:", m.id)}
               />
@@ -120,7 +183,9 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
                 priority={m.priority}
                 logsCount={m.logsCount ?? 0}
                 checked={m.checked ?? true}
-                onToggleChecked={() => console.log("[milestone] toggle checked:", m.id)}
+                onToggleChecked={() =>
+                  console.log("[milestone] toggle checked:", m.id)
+                }
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => console.log("[milestone] delete:", m.id)}
               />
@@ -130,6 +195,16 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
           <EmptyPlaceholder text="No completed milestones yet" />
         )}
       </div>
+
+      {/* MODAL */}
+      <MilestoneModal
+        open={isMilestoneModalOpen}
+        onClose={() => {
+          console.log("[ui] milestone modal close");
+          setIsMilestoneModalOpen(false);
+        }}
+        onCreate={handleCreateMilestone}
+      />
     </section>
   );
 }

@@ -164,7 +164,7 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe your mission"
-                  className="w-full border-2 border-black p-4 outline-none focus:border-black min-h-[140px]"
+                  className="w-full border-[1.5px] border-black p-4 outline-none focus:border-black min-h-[140px]"
                 />
               </div>
 
