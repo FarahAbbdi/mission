@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -18,18 +18,35 @@ type CreateMissionPayload = {
 // DB status values are lowercase in your table checks
 type MissionStatus = "active" | "completed" | "expired";
 
+type MissionRow = {
+  id: string;
+  owner_id: string;
+  name: string;
+  description: string | null;
+  start_date: string; // YYYY-MM-DD
+  end_date: string; // YYYY-MM-DD
+  status: MissionStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+function EmptyPlaceholder({ label }: { label: string }) {
+  return (
+    <div className="w-full border-2 border-dashed border-gray-300 py-10 min-h-[220px] flex items-center justify-center">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+        {label}
+      </p>
+    </div>
+  );
+}
+
 function EmptySubSection({ title }: { title: string }) {
   return (
     <div className="space-y-3">
       <h3 className="text-xs font-black uppercase tracking-wide text-gray-700">
         {title}
       </h3>
-
-      <div className="w-full border-2 border-dashed border-gray-300 py-10 min-h-[120px] flex items-center justify-center">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
-          Nothing here yet
-        </p>
-      </div>
+      <EmptyPlaceholder label="Nothing here yet" />
     </div>
   );
 }
@@ -68,9 +85,29 @@ function MissionGrid({ children }: { children: React.ReactNode }) {
   );
 }
 
+function formatDateRange(start: string, end: string) {
+  // "YYYY-MM-DD" -> "DD/MM/YYYY"
+  const toDMY = (d: string) => {
+    const [y, m, day] = d.split("-");
+    if (!y || !m || !day) return d;
+    return `${day}/${m}/${y}`;
+  };
+  return `${toDMY(start)} - ${toDMY(end)}`;
+}
+
+function toCardStatus(status: MissionStatus): "ACTIVE" | "COMPLETED" | "EXPIRED" {
+  if (status === "completed") return "COMPLETED";
+  if (status === "expired") return "EXPIRED";
+  return "ACTIVE";
+}
+
 export default function MissionsPage() {
   const router = useRouter();
+
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
+  const [missions, setMissions] = useState<MissionRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleLogout() {
     console.group("[logout]");
@@ -83,33 +120,103 @@ export default function MissionsPage() {
     router.push("/");
   }
 
+  async function loadMissions() {
+    console.group("[loadMissions]");
+    setLoading(true);
+    setError(null);
+
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
+
+    console.log("user:", user);
+
+    if (userErr) {
+      console.error("getUser error:", userErr);
+      setError(userErr.message);
+      setMissions([]);
+      setLoading(false);
+      console.groupEnd();
+      return;
+    }
+
+    if (!user) {
+      console.warn("no user -> clearing missions");
+      setMissions([]);
+      setLoading(false);
+      console.groupEnd();
+      return;
+    }
+
+    const { data, error: fetchErr } = await supabase
+      .from("missions")
+      .select(
+        "id, owner_id, name, description, start_date, end_date, status, created_at, updated_at"
+      )
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (fetchErr) {
+      console.error("fetch error:", fetchErr);
+      setError(fetchErr.message);
+      setMissions([]);
+      setLoading(false);
+      console.groupEnd();
+      return;
+    }
+
+    console.log("missions:", data);
+    setMissions((data ?? []) as MissionRow[]);
+    setLoading(false);
+    console.groupEnd();
+  }
+
+  useEffect(() => {
+    loadMissions();
+  }, []);
+
+  const active = useMemo(
+    () => missions.filter((m) => m.status === "active"),
+    [missions]
+  );
+  const completed = useMemo(
+    () => missions.filter((m) => m.status === "completed"),
+    [missions]
+  );
+  const expired = useMemo(
+    () => missions.filter((m) => m.status === "expired"),
+    [missions]
+  );
+
   async function handleCreateMission(payload: CreateMissionPayload) {
     console.group("[createMission]");
     console.log("payload from modal:", payload);
 
-    // Confirm session + user
-    const sessionRes = await supabase.auth.getSession();
-    console.log("session:", sessionRes.data.session);
+    setError(null);
 
-    const userRes = await supabase.auth.getUser();
-    console.log("getUser response:", userRes);
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
 
-    const user = userRes.data.user;
-    if (!user) {
-      console.error("NO USER - not logged in");
+    console.log("user:", user);
+
+    if (userErr) {
+      console.error("getUser error:", userErr);
+      setError(userErr.message);
       console.groupEnd();
-      throw new Error("You must be logged in to create a mission.");
+      return;
     }
 
-    // Build row matching your DB schema
-    const row: {
-      owner_id: string;
-      name: string;
-      description: string | null;
-      start_date: string;
-      end_date: string;
-      status: MissionStatus;
-    } = {
+    if (!user) {
+      console.error("NO USER - not logged in");
+      setError("You must be logged in to create a mission.");
+      console.groupEnd();
+      return;
+    }
+
+    const row: Omit<MissionRow, "id" | "created_at" | "updated_at"> = {
       owner_id: user.id,
       name: payload.name.trim(),
       description: payload.description?.trim() || null,
@@ -118,34 +225,28 @@ export default function MissionsPage() {
       status: "active",
     };
 
-    console.log("inserting row -> public.missions:", row);
+    console.log("inserting row -> missions:", row);
 
-    // Insert + return inserted row for debugging
     const insertRes = await supabase
       .from("missions")
       .insert(row)
-      .select("id, owner_id, name, status, start_date, end_date, created_at")
+      .select("id")
       .single();
 
     console.log("insert response:", insertRes);
 
     if (insertRes.error) {
-      console.error("insert error details:", {
-        message: insertRes.error.message,
-        code: (insertRes.error as any).code,
-        details: (insertRes.error as any).details,
-        hint: (insertRes.error as any).hint,
-      });
+      console.error("insert error:", insertRes.error);
+      setError(insertRes.error.message);
       console.groupEnd();
-      throw new Error(insertRes.error.message);
+      return;
     }
 
-    console.log("inserted mission:", insertRes.data);
+    console.log("inserted mission id:", insertRes.data?.id);
     console.groupEnd();
 
     setIsMissionModalOpen(false);
-
-    // Next step later: load missions from DB and refresh list here.
+    await loadMissions();
   }
 
   return (
@@ -158,59 +259,83 @@ export default function MissionsPage() {
         onLogout={handleLogout}
       />
 
+      {error && (
+        <div className="text-xs font-semibold uppercase tracking-widest text-red-600">
+          {error}
+        </div>
+      )}
+
       {/* ================= MY MISSIONS ================= */}
       <section className="space-y-6">
         <SectionHeader title="MY MISSIONS" />
 
         <SubSection title="ACTIVE">
-          <MissionGrid>
-            <MissionCard
-              title="Launch New Product"
-              status="ACTIVE"
-              milestonesText="1 / 3 Milestones"
-              dateRangeText="31/12/2025 - 31/03/2026"
-              watchers={["A", "B"]}
-            />
-            <MissionCard
-              title="Launch New Product"
-              status="ACTIVE"
-              milestonesText="1 / 3 Milestones"
-              dateRangeText="31/12/2025 - 31/03/2026"
-              watchers={["A", "B"]}
-            />
-            <MissionCard
-              title="Launch New Product"
-              status="ACTIVE"
-              milestonesText="1 / 3 Milestones"
-              dateRangeText="31/12/2025 - 31/03/2026"
-              watchers={["A", "B"]}
-            />
-          </MissionGrid>
+          {loading ? (
+            <div className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+              Loading…
+            </div>
+          ) : active.length ? (
+            <MissionGrid>
+              {active.map((m) => (
+                <MissionCard
+                  key={m.id}
+                  title={m.name}
+                  status={toCardStatus(m.status)}
+                  milestonesText="0 / 0 Milestones"
+                  dateRangeText={formatDateRange(m.start_date, m.end_date)}
+                  watchers={[]}
+                />
+              ))}
+            </MissionGrid>
+          ) : (
+            <EmptyPlaceholder label="Nothing here yet" />
+          )}
         </SubSection>
 
-        <EmptySubSection title="COMPLETED" />
-        <EmptySubSection title="UNSATISFIED" />
+        {completed.length ? (
+          <SubSection title="COMPLETED">
+            <MissionGrid>
+              {completed.map((m) => (
+                <MissionCard
+                  key={m.id}
+                  title={m.name}
+                  status={toCardStatus(m.status)}
+                  milestonesText="0 / 0 Milestones"
+                  dateRangeText={formatDateRange(m.start_date, m.end_date)}
+                  watchers={[]}
+                />
+              ))}
+            </MissionGrid>
+          </SubSection>
+        ) : (
+          <EmptySubSection title="COMPLETED" />
+        )}
+
+        {/* Your UI uses “UNSATISFIED”, DB uses “expired” */}
+        {expired.length ? (
+          <SubSection title="UNSATISFIED">
+            <MissionGrid>
+              {expired.map((m) => (
+                <MissionCard
+                  key={m.id}
+                  title={m.name}
+                  status={toCardStatus(m.status)}
+                  milestonesText="0 / 0 Milestones"
+                  dateRangeText={formatDateRange(m.start_date, m.end_date)}
+                  watchers={[]}
+                />
+              ))}
+            </MissionGrid>
+          </SubSection>
+        ) : (
+          <EmptySubSection title="UNSATISFIED" />
+        )}
       </section>
 
       {/* ================= WATCHING ================= */}
       <section className="space-y-6">
         <SectionHeader title="WATCHING" />
-
-        <SubSection title="ACTIVE">
-          <MissionGrid>
-            {Array.from({ length: 8 }).map((_, i) => (
-              <MissionCard
-                key={i}
-                title={`Mission ${i + 1}`}
-                status="ACTIVE"
-                milestonesText="1 / 3 Milestones"
-                dateRangeText="31/12/2025 - 31/03/2026"
-                watchers={["A", "B"]}
-              />
-            ))}
-          </MissionGrid>
-        </SubSection>
-
+        <EmptySubSection title="ACTIVE" />
         <EmptySubSection title="COMPLETED" />
         <EmptySubSection title="UNSATISFIED" />
       </section>
