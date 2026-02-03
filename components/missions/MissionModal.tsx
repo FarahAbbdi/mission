@@ -71,12 +71,15 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
 
     try {
       setSubmitting(true);
+
       await onCreate?.({
         name: name.trim(),
         startDate,
         endDate,
         description: description.trim(),
       });
+
+      // only close if create didn't throw
       onClose();
     } catch (e: any) {
       setError(e?.message ?? "Something went wrong.");
@@ -92,7 +95,7 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
         type="button"
         aria-label="Close modal"
         onClick={onClose}
-        className="absolute inset-0 bg-black/60"
+        className="absolute inset-0 bg-black/70"
       />
 
       {/* Modal */}
@@ -104,17 +107,17 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
           <div className="relative z-10 border-4 border-black bg-white">
             {/* Header */}
             <div className="flex items-center justify-between px-8 py-6">
-              <h2 className="text-4xl font-black tracking-tight">
+              <h2 className="text-4xl font-black tracking-tight leading-none">
                 CREATE MISSION
               </h2>
 
               <button
                 type="button"
                 onClick={onClose}
-                className="h-12 w-12 border-3 border-black grid place-items-center hover:bg-black hover:text-white transition-colors text-2xl leading-none"
+                className="h-12 w-12 border-2 border-black grid place-items-center hover:bg-black hover:text-white transition-colors"
                 aria-label="Close"
-                >
-                ×
+              >
+                <span className="text-3xl leading-none block p-0 m-0">×</span>
               </button>
             </div>
 
@@ -171,23 +174,24 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
 
               {/* Footer buttons */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                <BrutalButton
-                  type="button"
-                  variant="solid"
-                  disabled={submitting || !canSubmit}
-                  onClick={handleSubmit}
+                {/* If your BrutalButton doesn't support disabled yet, see note below */}
+                <div
+                  className={
+                    submitting || !canSubmit
+                      ? "opacity-60 pointer-events-none"
+                      : ""
+                  }
                 >
-                  CREATE MISSION
-                </BrutalButton>
+                  <BrutalButton type="button" variant="solid" onClick={handleSubmit}>
+                    {submitting ? "CREATING…" : "CREATE MISSION"}
+                  </BrutalButton>
+                </div>
 
-                <BrutalButton
-                  type="button"
-                  variant="outline"
-                  onClick={onClose}
-                  disabled={submitting}
-                >
-                  CANCEL
-                </BrutalButton>
+                <div className={submitting ? "opacity-60 pointer-events-none" : ""}>
+                  <BrutalButton type="button" variant="outline" onClick={onClose}>
+                    CANCEL
+                  </BrutalButton>
+                </div>
               </div>
             </div>
           </div>
