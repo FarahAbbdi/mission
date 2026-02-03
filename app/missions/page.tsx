@@ -284,6 +284,7 @@ export default function MissionsPage() {
                   milestonesText="0 / 0 Milestones"
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
                   watchers={[]}
+                  onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
             </MissionGrid>
@@ -303,6 +304,7 @@ export default function MissionsPage() {
                   milestonesText="0 / 0 Milestones"
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
                   watchers={[]}
+                  onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
             </MissionGrid>
@@ -323,6 +325,7 @@ export default function MissionsPage() {
                   milestonesText="0 / 0 Milestones"
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
                   watchers={[]}
+                  onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
             </MissionGrid>
