@@ -32,7 +32,7 @@ type MissionRow = {
 
 function EmptyPlaceholder({ label }: { label: string }) {
   return (
-    <div className="w-full border-2 border-dashed border-gray-300 py-10 min-h-[220px] flex items-center justify-center">
+    <div className="w-full border-2 border-dashed border-gray-300 py-10 min-h-[220px] flex items-center justify-center bg-white">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 text-center">
         {label}
       </p>
@@ -95,10 +95,27 @@ function formatDateRange(start: string, end: string) {
   return `${toDMY(start)} - ${toDMY(end)}`;
 }
 
-function toCardStatus(status: MissionStatus): "ACTIVE" | "COMPLETED" | "EXPIRED" {
+function toCardStatus(
+  status: MissionStatus
+): "ACTIVE" | "COMPLETED" | "EXPIRED" {
   if (status === "completed") return "COMPLETED";
   if (status === "expired") return "EXPIRED";
   return "ACTIVE";
+}
+
+function FullPageLoading() {
+  return (
+    <div className="fixed inset-0 z-50 bg-white/70">
+      <div className="h-full w-full grid place-items-center">
+        <div className="border-2 border-black bg-white px-6 py-4">
+          <div className="text-[10px] font-black uppercase tracking-widest text-gray-700">
+            Loading…
+          </div>
+          <div className="mt-2 h-[2px] w-24 bg-black" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function MissionsPage() {
@@ -250,7 +267,10 @@ export default function MissionsPage() {
   }
 
   return (
-    <main className="px-10 pt-5 pb-16 space-y-10">
+    <main className="px-10 pt-5 pb-16 space-y-10 relative">
+      {/* Full-page loading (consistent) */}
+      {loading && <FullPageLoading />}
+
       <MissionControlHeader
         onNewMission={() => {
           console.log("[ui] NEW MISSION click -> open modal");
@@ -270,11 +290,7 @@ export default function MissionsPage() {
         <SectionHeader title="MY MISSIONS" />
 
         <SubSection title="ACTIVE">
-          {loading ? (
-            <div className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-              Loading…
-            </div>
-          ) : active.length ? (
+          {active.length ? (
             <MissionGrid>
               {active.map((m) => (
                 <MissionCard
@@ -313,7 +329,7 @@ export default function MissionsPage() {
           <EmptySubSection title="COMPLETED" label="NO COMPLETED MISSIONS YET" />
         )}
 
-        {/* Your UI uses “UNSATISFIED”, DB uses “expired” */}
+        {/* UI label UNSATISFIED, DB uses expired */}
         {expired.length ? (
           <SubSection title="UNSATISFIED">
             <MissionGrid>
@@ -331,7 +347,10 @@ export default function MissionsPage() {
             </MissionGrid>
           </SubSection>
         ) : (
-          <EmptySubSection title="UNSATISFIED" label="NO UNSATISFIED MISSIONS YET" />
+          <EmptySubSection
+            title="UNSATISFIED"
+            label="NO UNSATISFIED MISSIONS YET"
+          />
         )}
       </section>
 

@@ -14,7 +14,7 @@ type MissionRow = {
   name: string;
   description: string | null;
   start_date: string; // YYYY-MM-DD
-  end_date: string;   // YYYY-MM-DD
+  end_date: string; // YYYY-MM-DD
   status: "active" | "completed" | "expired";
 };
 
@@ -26,6 +26,21 @@ type WatcherChipData = {
 type WatcherRow = {
   watcher_id: string;
 };
+
+function FullPageLoading() {
+  return (
+    <div className="fixed inset-0 z-50 bg-white/70">
+      <div className="h-full w-full grid place-items-center">
+        <div className="border-2 border-black bg-white px-6 py-4">
+          <div className="text-[10px] font-black uppercase tracking-widest text-gray-700">
+            Loading…
+          </div>
+          <div className="mt-2 h-[2px] w-24 bg-black" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function formatDate(iso: string) {
   const [y, m, d] = iso.split("-");
@@ -43,7 +58,11 @@ function statusToLabel(
 
 // Client-safe fallback label from watcher_id
 function chipFromWatcherId(watcherId: string): WatcherChipData {
-  const short = watcherId.replace(/-/g, "").slice(0, 6).toUpperCase();
+  const short = (watcherId || "user")
+    .replace(/-/g, "")
+    .slice(0, 6)
+    .toUpperCase();
+
   return {
     name: short,
     initial: short[0] ?? "U",
@@ -53,60 +72,109 @@ function chipFromWatcherId(watcherId: string): WatcherChipData {
 export default function MissionDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const missionId = params?.missionId as string;
+  const missionId = params?.missionId as string | undefined;
 
   const [mission, setMission] = useState<MissionRow | null>(null);
   const [watchers, setWatchers] = useState<WatcherChipData[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [deleting, setDeleting] = useState(false);
+  const [markingSatisfied, setMarkingSatisfied] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadMissionAndWatchers() {
-      if (!missionId) return;
-
-      setLoading(true);
-      setError(null);
-
-      /* ---------- LOAD MISSION ---------- */
-      const missionRes = await supabase
-        .from("missions")
-        .select("id, owner_id, name, description, start_date, end_date, status")
-        .eq("id", missionId)
-        .single();
-
-      if (missionRes.error) {
-        setError("Mission not found.");
-        setMission(null);
-        setWatchers([]);
-        setLoading(false);
-        return;
-      }
-
-      setMission(missionRes.data as MissionRow);
-
-      /* ---------- LOAD WATCHERS ---------- */
-      const watchersRes = await supabase
-        .from("watchers")
-        .select("watcher_id")
-        .eq("mission_id", missionId);
-
-      if (watchersRes.error) {
-        setWatchers([]);
-        setLoading(false);
-        return;
-      }
-
-      const mapped = ((watchersRes.data ?? []) as WatcherRow[])
-        .filter((row) => !!row.watcher_id)
-        .map((row) => chipFromWatcherId(row.watcher_id));
-
-      setWatchers(mapped);
+  async function loadMissionAndWatchers() {
+    if (!missionId) {
+      setError("Mission not found.");
+      setMission(null);
+      setWatchers([]);
       setLoading(false);
+      return;
     }
 
+    setLoading(true);
+    setError(null);
+
+    /* ---------- LOAD MISSION ---------- */
+    const missionRes = await supabase
+      .from("missions")
+      .select("id, owner_id, name, description, start_date, end_date, status")
+      .eq("id", missionId)
+      .single();
+
+    if (missionRes.error || !missionRes.data) {
+      // ✅ Don't use console.error (Next will show the big red overlay)
+      console.warn("[missionDetail] loadMission failed:", {
+        message: missionRes.error?.message,
+        details: missionRes.error?.details,
+        hint: missionRes.error?.hint,
+        code: missionRes.error?.code,
+      });
+
+      setError("Mission not found.");
+      setMission(null);
+      setWatchers([]);
+      setLoading(false);
+      return;
+    }
+
+    setMission(missionRes.data as MissionRow);
+
+    /* ---------- LOAD WATCHERS ---------- */
+    const watchersRes = await supabase
+      .from("watchers")
+      .select("watcher_id")
+      .eq("mission_id", missionId);
+
+    if (watchersRes.error) {
+      // ✅ watchers failing should not hard-fail the page
+      console.warn("[missionDetail] loadWatchers failed:", {
+        message: watchersRes.error.message,
+        details: watchersRes.error.details,
+        hint: watchersRes.error.hint,
+        code: watchersRes.error.code,
+      });
+
+      setWatchers([]);
+      setLoading(false);
+      return;
+    }
+
+    const mapped: WatcherChipData[] = ((watchersRes.data ?? []) as WatcherRow[])
+      .filter((row) => !!row.watcher_id)
+      .map((row) => chipFromWatcherId(row.watcher_id));
+
+    setWatchers(mapped);
+    setLoading(false);
+  }
+
+  useEffect(() => {
     loadMissionAndWatchers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
+
+  /* ---------- MARK AS SATISFIED (active -> completed) ---------- */
+  async function handleMarkSatisfied() {
+    if (!missionId) return;
+
+    setMarkingSatisfied(true);
+    setError(null);
+
+    const res = await supabase
+      .from("missions")
+      .update({ status: "completed" })
+      .eq("id", missionId)
+      .select("id, status")
+      .single();
+
+    if (res.error) {
+      setError(res.error.message);
+      setMarkingSatisfied(false);
+      return;
+    }
+
+    router.push("/missions");
+  }
 
   /* ---------- DELETE ---------- */
   async function handleDeleteMission() {
@@ -115,10 +183,7 @@ export default function MissionDetailPage() {
     setDeleting(true);
     setError(null);
 
-    const res = await supabase
-      .from("missions")
-      .delete()
-      .eq("id", missionId);
+    const res = await supabase.from("missions").delete().eq("id", missionId);
 
     if (res.error) {
       setError(res.error.message);
@@ -126,21 +191,11 @@ export default function MissionDetailPage() {
       return;
     }
 
-    // CASCADE deletes watchers automatically
     router.push("/missions");
   }
 
-  /* ---------- STATES ---------- */
-
-  if (loading) {
-    return (
-      <main className="px-12 pt-10 text-sm font-semibold uppercase tracking-widest">
-        Loading mission…
-      </main>
-    );
-  }
-
-  if (error || !mission) {
+  /* ---------- ERROR STATE (no loader) ---------- */
+  if (!loading && (error || !mission)) {
     return (
       <main className="px-12 pt-10 space-y-4">
         <p className="text-sm font-semibold uppercase tracking-widest text-red-600">
@@ -157,10 +212,10 @@ export default function MissionDetailPage() {
     );
   }
 
-  /* ---------- RENDER ---------- */
-
   return (
     <main className="min-h-screen flex flex-col">
+      {loading && <FullPageLoading />}
+
       <div className="px-12">
         <MissionDetailTopBar />
       </div>
@@ -191,20 +246,23 @@ export default function MissionDetailPage() {
         <div className="relative z-20 h-full px-12">
           <div className="flex h-full">
             {/* LEFT — Mission details */}
-            <div className="w-[38%] pr-10 pt-10 space-y-10">
-              <MissionDetailHeader
-                title={mission.name}
-                statusLabel={statusToLabel(mission.status)}
-                startDateText={formatDate(mission.start_date)}
-                endDateText={formatDate(mission.end_date)}
-                description={mission.description ?? ""}
-                watchers={watchers}
-                onDeleteMission={handleDeleteMission}
-              />
+            <div className="w-[38%] pr-10 pt-10 space-y-6">
+              {mission && (
+                <MissionDetailHeader
+                  title={mission.name}
+                  statusLabel={statusToLabel(mission.status)}
+                  startDateText={formatDate(mission.start_date)}
+                  endDateText={formatDate(mission.end_date)}
+                  description={mission.description ?? ""}
+                  watchers={watchers}
+                  onMarkSatisfied={handleMarkSatisfied}
+                  onDeleteMission={handleDeleteMission}
+                />
+              )}
 
-              {deleting && (
+              {(markingSatisfied || deleting) && (
                 <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-                  Deleting…
+                  {markingSatisfied ? "Marking satisfied…" : "Deleting…"}
                 </div>
               )}
             </div>
@@ -213,7 +271,7 @@ export default function MissionDetailPage() {
             <div className="flex-1 pl-10 pt-10 pb-16">
               <MilestonesSection
                 onAddMilestone={() =>
-                  console.log("[ui] add milestone for mission:", mission.id)
+                  console.log("[ui] add milestone for mission:", missionId)
                 }
               />
             </div>
