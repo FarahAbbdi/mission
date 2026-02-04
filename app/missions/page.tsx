@@ -30,6 +30,15 @@ type MissionRow = {
   updated_at: string;
 };
 
+function todayISODate(): string {
+  // YYYY-MM-DD (in local time, stable for date comparisons with Supabase "date" column)
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function EmptyPlaceholder({ label }: { label: string }) {
   return (
     <div className="w-full border-2 border-dashed border-gray-300 py-10 min-h-[220px] flex items-center justify-center bg-white">
@@ -127,18 +136,12 @@ export default function MissionsPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleLogout() {
-    console.group("[logout]");
-    console.log("start");
     const { error } = await supabase.auth.signOut();
-    if (error) console.error("error:", error);
-    console.log("done -> push /");
-    console.groupEnd();
-
+    if (error) setError(error.message);
     router.push("/");
   }
 
   async function loadMissions() {
-    console.group("[loadMissions]");
     setLoading(true);
     setError(null);
 
@@ -147,23 +150,34 @@ export default function MissionsPage() {
       error: userErr,
     } = await supabase.auth.getUser();
 
-    console.log("user:", user);
-
     if (userErr) {
-      console.error("getUser error:", userErr);
       setError(userErr.message);
       setMissions([]);
       setLoading(false);
-      console.groupEnd();
       return;
     }
 
     if (!user) {
-      console.warn("no user -> clearing missions");
       setMissions([]);
       setLoading(false);
-      console.groupEnd();
       return;
+    }
+
+    // Auto-expire: active missions whose end_date already passed
+    const expireRes = await supabase
+      .from("missions")
+      .update({ status: "expired" })
+      .eq("owner_id", user.id)
+      .eq("status", "active")
+      .lt("end_date", todayISODate());
+
+    if (expireRes.error) {
+      // don't hard-fail — still fetch missions
+      console.warn(
+        "[missions] auto-expire failed:",
+        expireRes.error.message,
+        expireRes.error.details
+      );
     }
 
     const { data, error: fetchErr } = await supabase
@@ -175,18 +189,14 @@ export default function MissionsPage() {
       .order("created_at", { ascending: false });
 
     if (fetchErr) {
-      console.error("fetch error:", fetchErr);
       setError(fetchErr.message);
       setMissions([]);
       setLoading(false);
-      console.groupEnd();
       return;
     }
 
-    console.log("missions:", data);
     setMissions((data ?? []) as MissionRow[]);
     setLoading(false);
-    console.groupEnd();
   }
 
   useEffect(() => {
@@ -207,9 +217,6 @@ export default function MissionsPage() {
   );
 
   async function handleCreateMission(payload: CreateMissionPayload) {
-    console.group("[createMission]");
-    console.log("payload from modal:", payload);
-
     setError(null);
 
     const {
@@ -217,19 +224,13 @@ export default function MissionsPage() {
       error: userErr,
     } = await supabase.auth.getUser();
 
-    console.log("user:", user);
-
     if (userErr) {
-      console.error("getUser error:", userErr);
       setError(userErr.message);
-      console.groupEnd();
       return;
     }
 
     if (!user) {
-      console.error("NO USER - not logged in");
       setError("You must be logged in to create a mission.");
-      console.groupEnd();
       return;
     }
 
@@ -242,25 +243,12 @@ export default function MissionsPage() {
       status: "active",
     };
 
-    console.log("inserting row -> missions:", row);
-
-    const insertRes = await supabase
-      .from("missions")
-      .insert(row)
-      .select("id")
-      .single();
-
-    console.log("insert response:", insertRes);
+    const insertRes = await supabase.from("missions").insert(row).select("id").single();
 
     if (insertRes.error) {
-      console.error("insert error:", insertRes.error);
       setError(insertRes.error.message);
-      console.groupEnd();
       return;
     }
-
-    console.log("inserted mission id:", insertRes.data?.id);
-    console.groupEnd();
 
     setIsMissionModalOpen(false);
     await loadMissions();
@@ -268,14 +256,10 @@ export default function MissionsPage() {
 
   return (
     <main className="px-10 pt-5 pb-16 space-y-10 relative">
-      {/* Full-page loading (consistent) */}
       {loading && <FullPageLoading />}
 
       <MissionControlHeader
-        onNewMission={() => {
-          console.log("[ui] NEW MISSION click -> open modal");
-          setIsMissionModalOpen(true);
-        }}
+        onNewMission={() => setIsMissionModalOpen(true)}
         onLogout={handleLogout}
       />
 
@@ -375,10 +359,7 @@ export default function MissionsPage() {
       {/* ================= CREATE MISSION MODAL ================= */}
       <MissionModal
         open={isMissionModalOpen}
-        onClose={() => {
-          console.log("[ui] modal close");
-          setIsMissionModalOpen(false);
-        }}
+        onClose={() => setIsMissionModalOpen(false)}
         onCreate={handleCreateMission}
       />
     </main>

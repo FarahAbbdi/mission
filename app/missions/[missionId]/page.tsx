@@ -103,7 +103,7 @@ export default function MissionDetailPage() {
       .single();
 
     if (missionRes.error || !missionRes.data) {
-      // ✅ Don't use console.error (Next will show the big red overlay)
+      // Don't use console.error (Next will show the big red overlay)
       console.warn("[missionDetail] loadMission failed:", {
         message: missionRes.error?.message,
         details: missionRes.error?.details,
