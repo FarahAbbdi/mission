@@ -3,7 +3,7 @@
 import { BrutalButton } from "@/components/ui/BrutalButton";
 
 type Props = {
-  statusLabel?: string; // e.g. "ACTIVE"
+  statusLabel?: string; // "ACTIVE" | "COMPLETED" | "UNSATISFIED"
   title: string;
 
   startDateText?: string;
@@ -34,7 +34,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function CardBox({ children }: { children: React.ReactNode }) {
-  return <div className="border-2 border-black bg-gray-50 px-4 py-3">{children}</div>;
+  return (
+    <div className="border-2 border-black bg-gray-50 px-4 py-3">{children}</div>
+  );
 }
 
 function DateStack({ start, end }: { start: string; end: string }) {
@@ -139,12 +141,16 @@ export default function MissionDetailHeader({
   onMarkSatisfied,
   onDeleteMission,
 }: Props) {
+  const canMarkSatisfied = statusLabel === "ACTIVE";
+
   return (
     <div className="space-y-7">
       {/* Status + Title */}
       <div className="space-y-5">
         <StatusPill label={statusLabel} />
-        <h1 className="text-4xl font-black tracking-tight leading-[1.05]">{title}</h1>
+        <h1 className="text-4xl font-black tracking-tight leading-[1.05]">
+          {title}
+        </h1>
       </div>
 
       {/* Dates */}
@@ -167,7 +173,11 @@ export default function MissionDetailHeader({
         {watchers.length ? (
           <div className="flex flex-wrap gap-3">
             {watchers.map((w) => (
-              <WatcherChip key={`${w.initial}-${w.name}`} initial={w.initial} name={w.name} />
+              <WatcherChip
+                key={`${w.initial}-${w.name}`}
+                initial={w.initial}
+                name={w.name}
+              />
             ))}
           </div>
         ) : (
@@ -184,12 +194,14 @@ export default function MissionDetailHeader({
           </span>
         </BrutalButton>
 
-        <BrutalButton variant="solid" onClick={onMarkSatisfied}>
-          <span className="inline-flex items-center gap-2 text-sm">
-            <CheckIcon />
-            MARK AS SATISFIED
-          </span>
-        </BrutalButton>
+        {canMarkSatisfied && (
+          <BrutalButton variant="solid" onClick={onMarkSatisfied}>
+            <span className="inline-flex items-center gap-2 text-sm">
+              <CheckIcon />
+              MARK AS SATISFIED
+            </span>
+          </BrutalButton>
+        )}
 
         <BrutalButton variant="outline" onClick={onDeleteMission}>
           <span className="inline-flex items-center gap-2 text-sm">
