@@ -82,10 +82,7 @@ function CheckBox({
     <button
       type="button"
       aria-label={checked ? "Mark incomplete" : "Mark complete"}
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggle?.();
-      }}
+      onClick={() => onToggle?.()}
       className={[
         "h-7 w-7 border-2 border-black grid place-items-center",
         checked ? "bg-black text-white" : "bg-white text-black",
@@ -113,6 +110,9 @@ export default function MilestoneCard({
   onDelete,
   onClick,
 }: Props) {
+  // lock checkbox + add log for completed/expired
+  const isLocked = status === "COMPLETED" || status === "EXPIRED";
+
   return (
     <div className="relative w-full">
       {/* permanent brutal shadow */}
@@ -128,7 +128,10 @@ export default function MilestoneCard({
         <div className="px-5 py-4">
           <div className="flex justify-between gap-2">
             <div className="flex gap-4">
-              <CheckBox checked={checked} onToggle={onToggleChecked} />
+              {/* only show checkbox when not locked */}
+              {!isLocked && (
+                <CheckBox checked={checked} onToggle={onToggleChecked} />
+              )}
 
               <div className="space-y-1">
                 <div className="text-lg font-black leading-tight">{title}</div>
@@ -156,29 +159,25 @@ export default function MilestoneCard({
           </div>
         </div>
 
+        {/* ADD LOG only when not locked */}
+        {!isLocked && (
+          <>
+            <div className="border-t-2 border-black" />
+            <div className="px-5 py-4">
+              <BrutalButton variant="outline" onClick={() => onAddLog?.()}>
+                <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest">
+                  <span className="text-base">+</span>
+                  ADD LOG
+                </span>
+              </BrutalButton>
+            </div>
+          </>
+        )}
+
+        {/* DELETE always (even completed/expired) */}
         <div className="border-t-2 border-black" />
-
-        {/* ADD LOG */}
         <div className="px-5 py-4">
-          <BrutalButton
-            variant="outline"
-            onClick={() => onAddLog?.()}
-          >
-            <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest">
-              <span className="text-base">+</span>
-              ADD LOG
-            </span>
-          </BrutalButton>
-        </div>
-
-        <div className="border-t-2 border-black" />
-
-        {/* DELETE */}
-        <div className="px-5 py-4">
-          <BrutalButton
-            variant="outline"
-            onClick={() => onDelete?.()}
-          >
+          <BrutalButton variant="outline" onClick={() => onDelete?.()}>
             <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest">
               <TrashIcon />
               DELETE MILESTONE
