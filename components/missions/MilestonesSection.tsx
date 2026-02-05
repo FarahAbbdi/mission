@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
+
 import { BrutalButton } from "@/components/ui/BrutalButton";
 import MilestoneCard from "@/components/missions/MilestoneCard";
 import MilestoneModal, {
@@ -47,16 +50,23 @@ function isoToDMY(iso: string) {
   return `${d}/${m}/${y}`;
 }
 
-function priorityToCard(p: "low" | "medium" | "high"): "LOW" | "MEDIUM" | "HIGH" {
+function priorityToCard(
+  p: "low" | "medium" | "high"
+): "LOW" | "MEDIUM" | "HIGH" {
   if (p === "low") return "LOW";
   if (p === "high") return "HIGH";
   return "MEDIUM";
 }
 
 export default function MilestonesSection({ onAddMilestone }: Props) {
-  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const params = useParams();
+  const missionId = params?.missionId as string | undefined;
 
-  // ✅ keep your dummy state, but store it in state so we can add to it on submit
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // dummy state (leave as-is for now)
   const [activeMilestones, setActiveMilestones] = useState<DummyMilestone[]>([
     {
       id: "m1",
@@ -80,19 +90,47 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
     },
   ]);
 
-  const [completedMilestones, setCompletedMilestones] = useState<DummyMilestone[]>([]);
+  const [completedMilestones] = useState<DummyMilestone[]>([]);
 
   const activeCount = useMemo(() => activeMilestones.length, [activeMilestones]);
-  const completedCount = useMemo(() => completedMilestones.length, [completedMilestones]);
+  const completedCount = useMemo(
+    () => completedMilestones.length,
+    [completedMilestones]
+  );
 
   async function handleCreateMilestone(payload: CreateMilestonePayload) {
-    console.group("[createMilestone]");
-    console.log("payload from modal:", payload);
+    setSubmitError(null);
 
-    // ✅ demo behavior: insert into ACTIVE list immediately so you can see it
-    // later replace this with Supabase insert, then reload milestones
+    if (!missionId) {
+      setSubmitError("Missing mission id (URL param).");
+      return;
+    }
+
+    setSubmitting(true);
+
+    // 1) Insert into Supabase (source of truth)
+    const insertRes = await supabase
+      .from("milestones")
+      .insert({
+        mission_id: missionId,
+        name: payload.name.trim(),
+        notes: payload.notes?.trim() || null,
+        deadline: payload.deadline, // expects YYYY-MM-DD
+        priority: payload.priority, // "low" | "medium" | "high"
+        status: "active",
+      })
+      .select("id")
+      .single();
+
+    if (insertRes.error) {
+      setSubmitError(insertRes.error.message);
+      setSubmitting(false);
+      return;
+    }
+
+    // 2) (Optional for now) optimistic add to your dummy list so you can see it
     const newItem: DummyMilestone = {
-      id: `tmp_${Date.now()}`,
+      id: insertRes.data?.id ?? `tmp_${Date.now()}`,
       title: payload.name,
       subtitle: payload.notes || undefined,
       status: "ACTIVE",
@@ -102,10 +140,9 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
       checked: false,
     };
 
-    console.log("optimistically adding dummy milestone:", newItem);
     setActiveMilestones((prev) => [newItem, ...prev]);
 
-    console.groupEnd();
+    setSubmitting(false);
     setIsMilestoneModalOpen(false);
   }
 
@@ -115,7 +152,6 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
       <div className="flex items-start justify-between gap-6">
         <div className="space-y-1">
           <h2 className="text-3xl font-black tracking-tight">MILESTONES</h2>
-          {/* optional tiny debug count */}
           <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
             {activeCount} active • {completedCount} completed
           </div>
@@ -125,8 +161,8 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
           <BrutalButton
             variant="outline"
             onClick={() => {
-              console.log("[ui] ADD MILESTONE click");
-              onAddMilestone?.(); // keep your hook for the page
+              onAddMilestone?.();
+              setSubmitError(null);
               setIsMilestoneModalOpen(true);
             }}
           >
@@ -137,6 +173,12 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
           </BrutalButton>
         </div>
       </div>
+
+      {submitError && (
+        <div className="text-xs font-semibold uppercase tracking-widest text-red-600">
+          {submitError}
+        </div>
+      )}
 
       {/* ACTIVE */}
       <div className="space-y-4">
@@ -200,11 +242,19 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
       <MilestoneModal
         open={isMilestoneModalOpen}
         onClose={() => {
-          console.log("[ui] milestone modal close");
+          if (submitting) return; // prevent closing mid-submit (optional)
           setIsMilestoneModalOpen(false);
         }}
         onCreate={handleCreateMilestone}
+        // If your MilestoneModal supports a loading/disabled prop, pass it:
+        // loading={submitting}
       />
+
+      {submitting && (
+        <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          Creating milestone…
+        </div>
+      )}
     </section>
   );
 }
