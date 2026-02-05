@@ -66,8 +66,11 @@ export default function MilestonesSection({ missionId }: Props) {
 
   const [rows, setRows] = useState<MilestoneRow[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [creating, setCreating] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
 
   async function loadMilestones() {
@@ -98,10 +101,7 @@ export default function MilestonesSection({ missionId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
 
-  const activeRows = useMemo(
-    () => rows.filter((r) => r.status === "active"),
-    [rows]
-  );
+  const activeRows = useMemo(() => rows.filter((r) => r.status === "active"), [rows]);
   const completedRows = useMemo(
     () => rows.filter((r) => r.status === "completed"),
     [rows]
@@ -121,7 +121,7 @@ export default function MilestonesSection({ missionId }: Props) {
         priority: payload.priority,
         status: "active",
       })
-      .select("id")
+      .select("id, mission_id, name, notes, deadline, priority, status, created_at")
       .single();
 
     if (insertRes.error) {
@@ -130,34 +130,61 @@ export default function MilestonesSection({ missionId }: Props) {
       return;
     }
 
+    // add immediately (no refetch needed)
+    if (insertRes.data) setRows((prev) => [insertRes.data as MilestoneRow, ...prev]);
+
     setIsMilestoneModalOpen(false);
     setCreating(false);
-
-    await loadMilestones();
   }
 
-  async function handleDeleteMilestone(milestoneId: string) {
-    if (!missionId) return;
+  // ✅ checkbox toggle (active <-> completed)
+  async function handleToggleMilestoneStatus(id: string, current: MilestoneStatus) {
+    const next: MilestoneStatus = current === "active" ? "completed" : "active";
 
     setError(null);
-    setDeletingId(milestoneId);
+    setTogglingId(id);
 
-    // snapshot for rollback
     const prevRows = rows;
 
-    // ✅ optimistic remove from UI
-    setRows((cur) => cur.filter((r) => r.id !== milestoneId));
+    // optimistic UI update
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: next } : r)));
 
-    // ✅ delete in DB (extra safety: ensure it belongs to this mission)
+    const updRes = await supabase
+      .from("milestones")
+      .update({ status: next })
+      .eq("id", id)
+      .eq("mission_id", missionId)
+      .select("id, status")
+      .single();
+
+    if (updRes.error) {
+      setRows(prevRows); // rollback
+      setError(updRes.error.message);
+      setTogglingId(null);
+      return;
+    }
+
+    setTogglingId(null);
+  }
+
+  // ✅ delete (remove from DB + UI)
+  async function handleDeleteMilestone(id: string) {
+    setError(null);
+    setDeletingId(id);
+
+    const prevRows = rows;
+
+    // optimistic UI remove
+    setRows((prev) => prev.filter((r) => r.id !== id));
+
     const delRes = await supabase
       .from("milestones")
       .delete()
-      .eq("id", milestoneId)
+      .eq("id", id)
       .eq("mission_id", missionId);
 
     if (delRes.error) {
-      // rollback UI
-      setRows(prevRows);
+      setRows(prevRows); // rollback
       setError(delRes.error.message);
       setDeletingId(null);
       return;
@@ -178,6 +205,18 @@ export default function MilestonesSection({ missionId }: Props) {
           <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
             {activeCount} active • {completedCount} completed
           </div>
+
+          {error && (
+            <div className="text-xs font-semibold uppercase tracking-widest text-red-600">
+              {error}
+            </div>
+          )}
+
+          {(togglingId || deletingId) && (
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+              {togglingId ? "Updating…" : "Deleting…"}
+            </div>
+          )}
         </div>
 
         <div className="w-[200px]">
@@ -189,12 +228,6 @@ export default function MilestonesSection({ missionId }: Props) {
           </BrutalButton>
         </div>
       </div>
-
-      {error && (
-        <div className="text-xs font-semibold uppercase tracking-widest text-red-600">
-          {error}
-        </div>
-      )}
 
       {/* ACTIVE */}
       <div className="space-y-4">
@@ -214,9 +247,7 @@ export default function MilestonesSection({ missionId }: Props) {
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={false}
-                onToggleChecked={() =>
-                  console.log("[milestone] toggle checked:", m.id)
-                }
+                onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => handleDeleteMilestone(m.id)}
               />
@@ -245,9 +276,7 @@ export default function MilestonesSection({ missionId }: Props) {
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={true}
-                onToggleChecked={() =>
-                  console.log("[milestone] toggle checked:", m.id)
-                }
+                onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => handleDeleteMilestone(m.id)}
               />
@@ -265,9 +294,9 @@ export default function MilestonesSection({ missionId }: Props) {
         onCreate={handleCreateMilestone}
       />
 
-      {(creating || deletingId) && (
+      {creating && (
         <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-          {creating ? "Creating…" : "Deleting…"}
+          Creating…
         </div>
       )}
     </section>
