@@ -1,17 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 import { BrutalButton } from "@/components/ui/BrutalButton";
 import MilestoneCard from "@/components/missions/MilestoneCard";
-import MilestoneModal, {
-  CreateMilestonePayload,
-} from "@/components/missions/MilestoneModal";
+import MilestoneModal, { CreateMilestonePayload } from "@/components/missions/MilestoneModal";
 
 type Props = {
-  onAddMilestone?: () => void;
+  missionId: string;
+};
+
+type MilestoneStatus = "active" | "completed";
+type MilestonePriority = "low" | "medium" | "high";
+
+type MilestoneRow = {
+  id: string;
+  mission_id: string;
+  name: string;
+  notes: string | null;
+  deadline: string; // YYYY-MM-DD
+  priority: MilestonePriority;
+  status: MilestoneStatus;
+  created_at?: string;
 };
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -32,90 +43,73 @@ function EmptyPlaceholder({ text }: { text: string }) {
   );
 }
 
-type DummyMilestone = {
-  id: string;
-  title: string;
-  subtitle?: string;
-  status: "ACTIVE" | "COMPLETED" | "EXPIRED";
-  deadlineText: string;
-  priority: "LOW" | "MEDIUM" | "HIGH";
-  logsCount?: number;
-  checked?: boolean;
-};
-
 function isoToDMY(iso: string) {
-  // "YYYY-MM-DD" -> "DD/MM/YYYY"
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
   return `${d}/${m}/${y}`;
 }
 
-function priorityToCard(
-  p: "low" | "medium" | "high"
-): "LOW" | "MEDIUM" | "HIGH" {
+function priorityToCard(p: MilestonePriority): "LOW" | "MEDIUM" | "HIGH" {
   if (p === "low") return "LOW";
   if (p === "high") return "HIGH";
   return "MEDIUM";
 }
 
-export default function MilestonesSection({ onAddMilestone }: Props) {
-  const params = useParams();
-  const missionId = params?.missionId as string | undefined;
+function statusToCard(s: MilestoneStatus): "ACTIVE" | "COMPLETED" {
+  return s === "completed" ? "COMPLETED" : "ACTIVE";
+}
 
+export default function MilestonesSection({ missionId }: Props) {
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // dummy state (leave as-is for now)
-  const [activeMilestones, setActiveMilestones] = useState<DummyMilestone[]>([
-    {
-      id: "m1",
-      title: "User Testing Round 1",
-      subtitle: "Recruit 10 beta testers",
-      status: "ACTIVE",
-      deadlineText: "01/02/2026",
-      priority: "HIGH",
-      logsCount: 1,
-      checked: false,
-    },
-    {
-      id: "m2",
-      title: "Launch Marketing Campaign",
-      subtitle: "Social media, email, blog posts",
-      status: "ACTIVE",
-      deadlineText: "08/02/2026",
-      priority: "MEDIUM",
-      logsCount: 0,
-      checked: false,
-    },
-  ]);
+  const [rows, setRows] = useState<MilestoneRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [completedMilestones] = useState<DummyMilestone[]>([]);
+  async function loadMilestones() {
+    if (!missionId) return;
 
-  const activeCount = useMemo(() => activeMilestones.length, [activeMilestones]);
-  const completedCount = useMemo(
-    () => completedMilestones.length,
-    [completedMilestones]
-  );
+    setLoading(true);
+    setError(null);
 
-  async function handleCreateMilestone(payload: CreateMilestonePayload) {
-    setSubmitError(null);
+    const res = await supabase
+      .from("milestones")
+      .select("id, mission_id, name, notes, deadline, priority, status, created_at")
+      .eq("mission_id", missionId)
+      .order("created_at", { ascending: false });
 
-    if (!missionId) {
-      setSubmitError("Missing mission id (URL param).");
+    if (res.error) {
+      setError(res.error.message);
+      setRows([]);
+      setLoading(false);
       return;
     }
 
-    setSubmitting(true);
+    setRows((res.data ?? []) as MilestoneRow[]);
+    setLoading(false);
+  }
 
-    // 1) Insert into Supabase (source of truth)
+  useEffect(() => {
+    loadMilestones();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missionId]);
+
+  const activeRows = useMemo(() => rows.filter((r) => r.status === "active"), [rows]);
+  const completedRows = useMemo(() => rows.filter((r) => r.status === "completed"), [rows]);
+
+  async function handleCreateMilestone(payload: CreateMilestonePayload) {
+    setCreating(true);
+    setError(null);
+
+    // insert into Supabase
     const insertRes = await supabase
       .from("milestones")
       .insert({
         mission_id: missionId,
         name: payload.name.trim(),
         notes: payload.notes?.trim() || null,
-        deadline: payload.deadline, // expects YYYY-MM-DD
+        deadline: payload.deadline, // YYYY-MM-DD
         priority: payload.priority, // "low" | "medium" | "high"
         status: "active",
       })
@@ -123,28 +117,20 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
       .single();
 
     if (insertRes.error) {
-      setSubmitError(insertRes.error.message);
-      setSubmitting(false);
+      setError(insertRes.error.message);
+      setCreating(false);
       return;
     }
 
-    // 2) (Optional for now) optimistic add to your dummy list so you can see it
-    const newItem: DummyMilestone = {
-      id: insertRes.data?.id ?? `tmp_${Date.now()}`,
-      title: payload.name,
-      subtitle: payload.notes || undefined,
-      status: "ACTIVE",
-      deadlineText: isoToDMY(payload.deadline),
-      priority: priorityToCard(payload.priority),
-      logsCount: 0,
-      checked: false,
-    };
-
-    setActiveMilestones((prev) => [newItem, ...prev]);
-
-    setSubmitting(false);
     setIsMilestoneModalOpen(false);
+    setCreating(false);
+
+    // re-fetch so it renders immediately
+    await loadMilestones();
   }
+
+  const activeCount = activeRows.length;
+  const completedCount = completedRows.length;
 
   return (
     <section className="space-y-8">
@@ -160,11 +146,7 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
         <div className="w-[200px]">
           <BrutalButton
             variant="outline"
-            onClick={() => {
-              onAddMilestone?.();
-              setSubmitError(null);
-              setIsMilestoneModalOpen(true);
-            }}
+            onClick={() => setIsMilestoneModalOpen(true)}
           >
             <span className="inline-flex items-center gap-2 text-sm">
               <span className="text-base leading-none">+</span>
@@ -174,9 +156,9 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
         </div>
       </div>
 
-      {submitError && (
+      {error && (
         <div className="text-xs font-semibold uppercase tracking-widest text-red-600">
-          {submitError}
+          {error}
         </div>
       )}
 
@@ -184,21 +166,21 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
       <div className="space-y-4">
         <SectionLabel>ACTIVE</SectionLabel>
 
-        {activeMilestones.length ? (
+        {loading ? (
+          <EmptyPlaceholder text="Loading…" />
+        ) : activeRows.length ? (
           <div className="space-y-6">
-            {activeMilestones.map((m) => (
+            {activeRows.map((m) => (
               <MilestoneCard
                 key={m.id}
-                title={m.title}
-                subtitle={m.subtitle}
-                status={m.status}
-                deadlineText={m.deadlineText}
-                priority={m.priority}
-                logsCount={m.logsCount ?? 0}
-                checked={m.checked}
-                onToggleChecked={() =>
-                  console.log("[milestone] toggle checked:", m.id)
-                }
+                title={m.name}
+                subtitle={m.notes ?? undefined}
+                status={statusToCard(m.status)}
+                deadlineText={isoToDMY(m.deadline)}
+                priority={priorityToCard(m.priority)}
+                logsCount={0}
+                checked={false}
+                onToggleChecked={() => console.log("[milestone] toggle checked:", m.id)}
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => console.log("[milestone] delete:", m.id)}
               />
@@ -213,21 +195,21 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
       <div className="space-y-4">
         <SectionLabel>COMPLETED</SectionLabel>
 
-        {completedMilestones.length ? (
+        {loading ? (
+          <EmptyPlaceholder text="Loading…" />
+        ) : completedRows.length ? (
           <div className="space-y-6">
-            {completedMilestones.map((m) => (
+            {completedRows.map((m) => (
               <MilestoneCard
                 key={m.id}
-                title={m.title}
-                subtitle={m.subtitle}
-                status={m.status}
-                deadlineText={m.deadlineText}
-                priority={m.priority}
-                logsCount={m.logsCount ?? 0}
-                checked={m.checked ?? true}
-                onToggleChecked={() =>
-                  console.log("[milestone] toggle checked:", m.id)
-                }
+                title={m.name}
+                subtitle={m.notes ?? undefined}
+                status={statusToCard(m.status)}
+                deadlineText={isoToDMY(m.deadline)}
+                priority={priorityToCard(m.priority)}
+                logsCount={0}
+                checked={true}
+                onToggleChecked={() => console.log("[milestone] toggle checked:", m.id)}
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => console.log("[milestone] delete:", m.id)}
               />
@@ -241,18 +223,13 @@ export default function MilestonesSection({ onAddMilestone }: Props) {
       {/* MODAL */}
       <MilestoneModal
         open={isMilestoneModalOpen}
-        onClose={() => {
-          if (submitting) return; // prevent closing mid-submit (optional)
-          setIsMilestoneModalOpen(false);
-        }}
+        onClose={() => setIsMilestoneModalOpen(false)}
         onCreate={handleCreateMilestone}
-        // If your MilestoneModal supports a loading/disabled prop, pass it:
-        // loading={submitting}
       />
 
-      {submitting && (
+      {creating && (
         <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-          Creating milestone…
+          Creating…
         </div>
       )}
     </section>

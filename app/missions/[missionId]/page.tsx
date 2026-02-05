@@ -56,17 +56,9 @@ function statusToLabel(
   return "ACTIVE";
 }
 
-// Client-safe fallback label from watcher_id
 function chipFromWatcherId(watcherId: string): WatcherChipData {
-  const short = (watcherId || "user")
-    .replace(/-/g, "")
-    .slice(0, 6)
-    .toUpperCase();
-
-  return {
-    name: short,
-    initial: short[0] ?? "U",
-  };
+  const short = (watcherId || "user").replace(/-/g, "").slice(0, 6).toUpperCase();
+  return { name: short, initial: short[0] ?? "U" };
 }
 
 export default function MissionDetailPage() {
@@ -95,7 +87,6 @@ export default function MissionDetailPage() {
     setLoading(true);
     setError(null);
 
-    /* ---------- LOAD MISSION ---------- */
     const missionRes = await supabase
       .from("missions")
       .select("id, owner_id, name, description, start_date, end_date, status")
@@ -103,14 +94,6 @@ export default function MissionDetailPage() {
       .single();
 
     if (missionRes.error || !missionRes.data) {
-      // Don't use console.error (Next will show the big red overlay)
-      console.warn("[missionDetail] loadMission failed:", {
-        message: missionRes.error?.message,
-        details: missionRes.error?.details,
-        hint: missionRes.error?.hint,
-        code: missionRes.error?.code,
-      });
-
       setError("Mission not found.");
       setMission(null);
       setWatchers([]);
@@ -120,21 +103,12 @@ export default function MissionDetailPage() {
 
     setMission(missionRes.data as MissionRow);
 
-    /* ---------- LOAD WATCHERS ---------- */
     const watchersRes = await supabase
       .from("watchers")
       .select("watcher_id")
       .eq("mission_id", missionId);
 
     if (watchersRes.error) {
-      // ✅ watchers failing should not hard-fail the page
-      console.warn("[missionDetail] loadWatchers failed:", {
-        message: watchersRes.error.message,
-        details: watchersRes.error.details,
-        hint: watchersRes.error.hint,
-        code: watchersRes.error.code,
-      });
-
       setWatchers([]);
       setLoading(false);
       return;
@@ -153,7 +127,6 @@ export default function MissionDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
 
-  /* ---------- MARK AS SATISFIED (active -> completed) ---------- */
   async function handleMarkSatisfied() {
     if (!missionId) return;
 
@@ -176,7 +149,6 @@ export default function MissionDetailPage() {
     router.push("/missions");
   }
 
-  /* ---------- DELETE ---------- */
   async function handleDeleteMission() {
     if (!missionId) return;
 
@@ -194,7 +166,6 @@ export default function MissionDetailPage() {
     router.push("/missions");
   }
 
-  /* ---------- ERROR STATE (no loader) ---------- */
   if (!loading && (error || !mission)) {
     return (
       <main className="px-12 pt-10 space-y-4">
@@ -221,31 +192,11 @@ export default function MissionDetailPage() {
       </div>
 
       <section className="relative flex-1">
-        {/* Right-side background */}
-        <div
-          className="
-            absolute inset-y-0
-            left-[38%]
-            right-0
-            bg-gray-50
-            z-0
-          "
-        />
-
-        {/* Divider */}
-        <div
-          className="
-            absolute inset-y-0
-            left-[38%]
-            w-[4px]
-            bg-black
-            z-10
-          "
-        />
+        <div className="absolute inset-y-0 left-[38%] right-0 bg-gray-50 z-0" />
+        <div className="absolute inset-y-0 left-[38%] w-[4px] bg-black z-10" />
 
         <div className="relative z-20 h-full px-12">
           <div className="flex h-full">
-            {/* LEFT — Mission details */}
             <div className="w-[38%] pr-10 pt-10 space-y-6">
               {mission && (
                 <MissionDetailHeader
@@ -267,13 +218,9 @@ export default function MissionDetailPage() {
               )}
             </div>
 
-            {/* RIGHT — Milestones */}
             <div className="flex-1 pl-10 pt-10 pb-16">
-              <MilestonesSection
-                onAddMilestone={() =>
-                  console.log("[ui] add milestone for mission:", missionId)
-                }
-              />
+              {/* render milestones for this mission */}
+              {missionId && <MilestonesSection missionId={missionId} />}
             </div>
           </div>
         </div>
