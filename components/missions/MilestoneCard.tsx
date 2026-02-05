@@ -18,7 +18,7 @@ type Props = {
 
 function CalendarIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M7 4v3M17 4v3" stroke="currentColor" strokeWidth="2" />
       <path d="M5 9h14" stroke="currentColor" strokeWidth="2" />
       <path d="M6 6h12v14H6V6Z" stroke="currentColor" strokeWidth="2" />
@@ -28,7 +28,7 @@ function CalendarIcon() {
 
 function ChevronRight() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M10 6l6 6-6 6" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
@@ -36,7 +36,7 @@ function ChevronRight() {
 
 function TrashIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M6 7h12" stroke="currentColor" strokeWidth="2" />
       <path d="M9 7V5h6v2" stroke="currentColor" strokeWidth="2" />
       <path d="M8 7l1 14h6l1-14" stroke="currentColor" strokeWidth="2" />
@@ -71,9 +71,17 @@ function PriorityPill({ priority }: { priority: Props["priority"] }) {
   );
 }
 
-function CheckBox({ checked, onToggle }: { checked?: boolean; onToggle?: () => void }) {
+function CheckBox({
+  checked,
+  onToggle,
+}: {
+  checked?: boolean;
+  onToggle?: () => void;
+}) {
   return (
     <button
+      type="button"
+      aria-label={checked ? "Mark incomplete" : "Mark complete"}
       onClick={(e) => {
         e.stopPropagation();
         onToggle?.();
@@ -84,7 +92,7 @@ function CheckBox({ checked, onToggle }: { checked?: boolean; onToggle?: () => v
       ].join(" ")}
     >
       {checked && (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" />
         </svg>
       )}
@@ -111,6 +119,8 @@ export default function MilestoneCard({
       <div className="absolute inset-0 bg-black translate-x-2 translate-y-2" />
 
       <div
+        role={onClick ? "button" : undefined}
+        tabIndex={onClick ? 0 : -1}
         onClick={onClick}
         className="relative z-10 w-full border-2 border-black bg-white"
       >
@@ -150,7 +160,10 @@ export default function MilestoneCard({
 
         {/* ADD LOG */}
         <div className="px-5 py-4">
-          <BrutalButton variant="outline">
+          <BrutalButton
+            variant="outline"
+            onClick={() => onAddLog?.()}
+          >
             <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest">
               <span className="text-base">+</span>
               ADD LOG
@@ -162,7 +175,10 @@ export default function MilestoneCard({
 
         {/* DELETE */}
         <div className="px-5 py-4">
-          <BrutalButton variant="outline">
+          <BrutalButton
+            variant="outline"
+            onClick={() => onDelete?.()}
+          >
             <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest">
               <TrashIcon />
               DELETE MILESTONE

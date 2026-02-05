@@ -5,7 +5,9 @@ import { supabase } from "@/lib/supabaseClient";
 
 import { BrutalButton } from "@/components/ui/BrutalButton";
 import MilestoneCard from "@/components/missions/MilestoneCard";
-import MilestoneModal, { CreateMilestonePayload } from "@/components/missions/MilestoneModal";
+import MilestoneModal, {
+  CreateMilestonePayload,
+} from "@/components/missions/MilestoneModal";
 
 type Props = {
   missionId: string;
@@ -65,6 +67,7 @@ export default function MilestonesSection({ missionId }: Props) {
   const [rows, setRows] = useState<MilestoneRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function loadMilestones() {
@@ -95,22 +98,27 @@ export default function MilestonesSection({ missionId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
 
-  const activeRows = useMemo(() => rows.filter((r) => r.status === "active"), [rows]);
-  const completedRows = useMemo(() => rows.filter((r) => r.status === "completed"), [rows]);
+  const activeRows = useMemo(
+    () => rows.filter((r) => r.status === "active"),
+    [rows]
+  );
+  const completedRows = useMemo(
+    () => rows.filter((r) => r.status === "completed"),
+    [rows]
+  );
 
   async function handleCreateMilestone(payload: CreateMilestonePayload) {
     setCreating(true);
     setError(null);
 
-    // insert into Supabase
     const insertRes = await supabase
       .from("milestones")
       .insert({
         mission_id: missionId,
         name: payload.name.trim(),
         notes: payload.notes?.trim() || null,
-        deadline: payload.deadline, // YYYY-MM-DD
-        priority: payload.priority, // "low" | "medium" | "high"
+        deadline: payload.deadline,
+        priority: payload.priority,
         status: "active",
       })
       .select("id")
@@ -125,8 +133,37 @@ export default function MilestonesSection({ missionId }: Props) {
     setIsMilestoneModalOpen(false);
     setCreating(false);
 
-    // re-fetch so it renders immediately
     await loadMilestones();
+  }
+
+  async function handleDeleteMilestone(milestoneId: string) {
+    if (!missionId) return;
+
+    setError(null);
+    setDeletingId(milestoneId);
+
+    // snapshot for rollback
+    const prevRows = rows;
+
+    // ✅ optimistic remove from UI
+    setRows((cur) => cur.filter((r) => r.id !== milestoneId));
+
+    // ✅ delete in DB (extra safety: ensure it belongs to this mission)
+    const delRes = await supabase
+      .from("milestones")
+      .delete()
+      .eq("id", milestoneId)
+      .eq("mission_id", missionId);
+
+    if (delRes.error) {
+      // rollback UI
+      setRows(prevRows);
+      setError(delRes.error.message);
+      setDeletingId(null);
+      return;
+    }
+
+    setDeletingId(null);
   }
 
   const activeCount = activeRows.length;
@@ -144,10 +181,7 @@ export default function MilestonesSection({ missionId }: Props) {
         </div>
 
         <div className="w-[200px]">
-          <BrutalButton
-            variant="outline"
-            onClick={() => setIsMilestoneModalOpen(true)}
-          >
+          <BrutalButton variant="outline" onClick={() => setIsMilestoneModalOpen(true)}>
             <span className="inline-flex items-center gap-2 text-sm">
               <span className="text-base leading-none">+</span>
               ADD MILESTONE
@@ -180,9 +214,11 @@ export default function MilestonesSection({ missionId }: Props) {
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={false}
-                onToggleChecked={() => console.log("[milestone] toggle checked:", m.id)}
+                onToggleChecked={() =>
+                  console.log("[milestone] toggle checked:", m.id)
+                }
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
-                onDelete={() => console.log("[milestone] delete:", m.id)}
+                onDelete={() => handleDeleteMilestone(m.id)}
               />
             ))}
           </div>
@@ -209,9 +245,11 @@ export default function MilestonesSection({ missionId }: Props) {
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={true}
-                onToggleChecked={() => console.log("[milestone] toggle checked:", m.id)}
+                onToggleChecked={() =>
+                  console.log("[milestone] toggle checked:", m.id)
+                }
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
-                onDelete={() => console.log("[milestone] delete:", m.id)}
+                onDelete={() => handleDeleteMilestone(m.id)}
               />
             ))}
           </div>
@@ -227,9 +265,9 @@ export default function MilestonesSection({ missionId }: Props) {
         onCreate={handleCreateMilestone}
       />
 
-      {creating && (
+      {(creating || deletingId) && (
         <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-          Creating…
+          {creating ? "Creating…" : "Deleting…"}
         </div>
       )}
     </section>
