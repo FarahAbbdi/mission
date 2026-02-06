@@ -236,8 +236,10 @@ export default function MissionsPage() {
   }
 
   useEffect(() => {
-    loadMissions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // defer to a microtask so loadMissions (which calls setState) doesn't run synchronously
+    void Promise.resolve().then(() => {
+      void loadMissions();
+    });
   }, []);
 
   const active = useMemo(() => missions.filter((m) => m.status === "active"), [missions]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -111,7 +111,6 @@ export default function MissionsPage() {
   const [missions, setMissions] = useState<MissionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [createLoading, setCreateLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleLogout() {
@@ -119,7 +118,7 @@ export default function MissionsPage() {
     router.push("/");
   }
 
-  async function loadMissions() {
+  const loadMissions = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -159,11 +158,12 @@ export default function MissionsPage() {
 
     setMissions((data ?? []) as MissionRow[]);
     setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
-    loadMissions();
-  }, []);
+    // defer to a microtask so loadMissions (which calls setState) doesn't run synchronously
+    void Promise.resolve().then(() => loadMissions());
+  }, [loadMissions]);
 
   const active = useMemo(
     () => missions.filter((m) => m.status === "ACTIVE"),
@@ -179,19 +179,16 @@ export default function MissionsPage() {
   );
 
   async function handleCreateMission(payload: CreateMissionPayload) {
-    setCreateLoading(true);
     setError(null);
 
     const name = payload.name.trim();
     if (!name) {
       setError("Mission name is required.");
-      setCreateLoading(false);
       return;
     }
 
     if (!isISODate(payload.startDate) || !isISODate(payload.endDate)) {
       setError("Dates must be in YYYY-MM-DD format.");
-      setCreateLoading(false);
       return;
     }
 
@@ -202,13 +199,11 @@ export default function MissionsPage() {
 
     if (userErr) {
       setError(userErr.message);
-      setCreateLoading(false);
       return;
     }
 
     if (!user) {
       setError("You must be logged in to create a mission.");
-      setCreateLoading(false);
       return;
     }
 
@@ -231,7 +226,6 @@ export default function MissionsPage() {
     if (insertErr) {
       console.error("createMission error:", insertErr);
       setError(`${insertErr.code ?? ""} ${insertErr.message}`.trim());
-      setCreateLoading(false);
       return;
     }
 
@@ -239,7 +233,6 @@ export default function MissionsPage() {
     if (inserted) setMissions((prev) => [inserted as MissionRow, ...prev]);
 
     setIsMissionModalOpen(false);
-    setCreateLoading(false);
 
     // Optional: re-fetch to guarantee sync (kept for safety)
     await loadMissions();

@@ -62,8 +62,12 @@ export default function LogModal({ open, onClose, onCreate }: Props) {
       await onCreate?.({ content: content.trim() });
 
       onClose();
-    } catch (e: any) {
-      setError(e?.message ?? "Something went wrong.");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError(String(error) || "Something went wrong.");
+      }
     } finally {
       setSubmitting(false);
     }

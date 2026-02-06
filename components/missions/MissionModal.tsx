@@ -78,8 +78,12 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
       });
 
       onClose();
-    } catch (e: any) {
-      setError(e?.message ?? "Something went wrong.");
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError("Something went wrong.");
+      }
     } finally {
       setSubmitting(false);
     }

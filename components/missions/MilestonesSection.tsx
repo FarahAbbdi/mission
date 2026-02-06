@@ -75,8 +75,10 @@ function priorityToCard(p: MilestonePriority): "LOW" | "MEDIUM" | "HIGH" {
   return "MEDIUM";
 }
 
-function statusToCard(s: MilestoneStatus): "ACTIVE" | "COMPLETED" {
-  return s === "completed" ? "COMPLETED" : "ACTIVE";
+function statusToCard(s: MilestoneStatus | "unsatisfied"): "ACTIVE" | "COMPLETED" | "UNSATISFIED" {
+  if (s === "completed") return "COMPLETED";
+  if (s === "unsatisfied") return "UNSATISFIED";
+  return "ACTIVE";
 }
 
 export default function MilestonesSection({
@@ -398,7 +400,7 @@ export default function MilestonesSection({
                   status={statusToCard(m.status)}
                   deadlineText={isoToDMY(m.deadline)}
                   priority={priorityToCard(m.priority)}
-                  logs={logs as any}
+                  logs={logs}
                   logsCount={logs.length}
                   checked={false}
                   isLocked={isMissionLocked}
@@ -432,7 +434,7 @@ export default function MilestonesSection({
                   status={statusToCard(m.status)}
                   deadlineText={isoToDMY(m.deadline)}
                   priority={priorityToCard(m.priority)}
-                  logs={logs as any}
+                  logs={logs}
                   logsCount={logs.length}
                   checked={true}
                   isLocked={isMissionLocked}
@@ -463,10 +465,10 @@ export default function MilestonesSection({
                   key={m.id}
                   title={m.name}
                   subtitle={m.notes ?? undefined}
-                  status={"UNSATISFIED" as any}
+                  status={statusToCard("unsatisfied")}
                   deadlineText={isoToDMY(m.deadline)}
                   priority={priorityToCard(m.priority)}
-                  logs={logs as any}
+                  logs={logs}
                   logsCount={logs.length}
                   checked={false}
                   isLocked={true}

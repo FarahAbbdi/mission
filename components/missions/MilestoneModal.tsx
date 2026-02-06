@@ -107,8 +107,12 @@ export default function MilestoneModal({ open, onClose, onCreate }: Props) {
       });
 
       onClose();
-    } catch (e: any) {
-      setError(e?.message ?? "Something went wrong.");
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError(String(e) || "Something went wrong.");
+      }
     } finally {
       setSubmitting(false);
     }
