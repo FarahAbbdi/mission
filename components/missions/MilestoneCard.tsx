@@ -5,7 +5,7 @@ import { BrutalButton } from "@/components/ui/BrutalButton";
 type Props = {
   title: string;
   subtitle?: string;
-  status: "ACTIVE" | "COMPLETED" | "EXPIRED";
+  status: "ACTIVE" | "COMPLETED" | "UNSATISFIED";
   deadlineText: string;
   priority: "LOW" | "MEDIUM" | "HIGH";
   logsCount?: number;
@@ -114,7 +114,7 @@ export default function MilestoneCard({
 }: Props) {
   // Lock milestone interactions for completed/expired missions
   // If parent passes isLocked, respect it; otherwise lock by status.
-  const isLocked = isLockedProp ?? (status === "COMPLETED" || status === "EXPIRED");
+  const isLocked = isLockedProp ?? (status === "COMPLETED" || status === "UNSATISFIED");
 
   return (
     <div className="relative w-full">

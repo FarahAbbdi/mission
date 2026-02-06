@@ -5,11 +5,13 @@ import { supabase } from "@/lib/supabaseClient";
 
 import { BrutalButton } from "@/components/ui/BrutalButton";
 import MilestoneCard from "@/components/missions/MilestoneCard";
-import MilestoneModal, { CreateMilestonePayload } from "@/components/missions/MilestoneModal";
+import MilestoneModal, {
+  CreateMilestonePayload,
+} from "@/components/missions/MilestoneModal";
 
 type Props = {
   missionId: string;
-  missionStatus?: "active" | "completed" | "expired"; //
+  missionStatus?: "active" | "completed" | "expired"; // pass from mission detail page
 };
 
 type MilestoneStatus = "active" | "completed";
@@ -20,7 +22,7 @@ type MilestoneRow = {
   mission_id: string;
   name: string;
   notes: string | null;
-  deadline: string;
+  deadline: string; // YYYY-MM-DD
   priority: MilestonePriority;
   status: MilestoneStatus;
   created_at?: string;
@@ -44,6 +46,15 @@ function EmptyPlaceholder({ text }: { text: string }) {
   );
 }
 
+// local YYYY-MM-DD (avoid UTC off-by-one)
+function todayLocalISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function isoToDMY(iso: string) {
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
@@ -64,7 +75,7 @@ export default function MilestonesSection({
   missionId,
   missionStatus = "active",
 }: Props) {
-  const isLocked = missionStatus === "completed" || missionStatus === "expired";
+  const isMissionLocked = missionStatus === "completed" || missionStatus === "expired";
 
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
 
@@ -105,11 +116,41 @@ export default function MilestonesSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
 
-  const activeRows = useMemo(() => rows.filter((r) => r.status === "active"), [rows]);
-  const completedRows = useMemo(() => rows.filter((r) => r.status === "completed"), [rows]);
+  // UNSATISFIED logic
+  const today = todayLocalISO();
+
+  const unsatisfiedRows = useMemo(() => {
+    return rows.filter((r) => {
+      if (r.status !== "active") return false;
+
+      // If mission is completed/expired, any active milestone is unsatisfied
+      if (isMissionLocked) return true;
+
+      // Otherwise: active milestone past deadline is unsatisfied
+      // NOTE: deadline is YYYY-MM-DD so lex compare works
+      return r.deadline < today;
+    });
+  }, [rows, isMissionLocked, today]);
+
+  const activeRows = useMemo(() => {
+    return rows.filter((r) => {
+      if (r.status !== "active") return false;
+
+      // active mission only
+      if (isMissionLocked) return false;
+
+      // exclude unsatisfied (past deadline)
+      return !(r.deadline < today);
+    });
+  }, [rows, isMissionLocked, today]);
+
+  const completedRows = useMemo(
+    () => rows.filter((r) => r.status === "completed"),
+    [rows]
+  );
 
   async function handleCreateMilestone(payload: CreateMilestonePayload) {
-    if (isLocked) return;
+    if (isMissionLocked) return;
 
     setCreating(true);
     setError(null);
@@ -140,7 +181,7 @@ export default function MilestonesSection({
   }
 
   async function handleToggleMilestoneStatus(id: string, current: MilestoneStatus) {
-    if (isLocked) return; // optional: also lock status changes
+    if (isMissionLocked) return;
 
     const next: MilestoneStatus = current === "active" ? "completed" : "active";
 
@@ -169,7 +210,7 @@ export default function MilestonesSection({
   }
 
   async function handleDeleteMilestone(id: string) {
-    // you said delete can still be allowed, so don't lock this
+    // delete is allowed even when mission locked (you asked to keep it)
     setError(null);
     setDeletingId(id);
 
@@ -192,9 +233,6 @@ export default function MilestonesSection({
     setDeletingId(null);
   }
 
-  const activeCount = activeRows.length;
-  const completedCount = completedRows.length;
-
   return (
     <section className="space-y-8">
       {/* Header */}
@@ -202,7 +240,7 @@ export default function MilestonesSection({
         <div className="space-y-1">
           <h2 className="text-3xl font-black tracking-tight">MILESTONES</h2>
           <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-            {activeCount} active • {completedCount} completed
+            {activeRows.length} active • {completedRows.length} completed • {unsatisfiedRows.length} unsatisfied
           </div>
 
           {error && (
@@ -218,8 +256,8 @@ export default function MilestonesSection({
           )}
         </div>
 
-        {/* HIDE ADD BUTTON WHEN LOCKED */}
-        {!isLocked && (
+        {/* Hide ADD MILESTONE button when mission is completed/expired */}
+        {!isMissionLocked && (
           <div className="w-[200px]">
             <BrutalButton variant="outline" onClick={() => setIsMilestoneModalOpen(true)}>
               <span className="inline-flex items-center gap-2 text-sm">
@@ -249,7 +287,7 @@ export default function MilestonesSection({
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={false}
-                isLocked={isLocked}
+                isLocked={isMissionLocked} // hides checkbox + add log if mission locked
                 onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => handleDeleteMilestone(m.id)}
@@ -279,7 +317,7 @@ export default function MilestonesSection({
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={true}
-                isLocked={isLocked}
+                isLocked={isMissionLocked} // still allows delete (card controls it)
                 onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => handleDeleteMilestone(m.id)}
@@ -291,14 +329,41 @@ export default function MilestonesSection({
         )}
       </div>
 
+      {/* UNSATISFIED (UI label) */}
+      <div className="space-y-4">
+        <SectionLabel>UNSATISFIED</SectionLabel>
+
+        {loading ? (
+          <EmptyPlaceholder text="Loading…" />
+        ) : unsatisfiedRows.length ? (
+          <div className="space-y-6">
+            {unsatisfiedRows.map((m) => (
+              <MilestoneCard
+                key={m.id}
+                title={m.name}
+                subtitle={m.notes ?? undefined}
+                // We pass UNSATISFIED for the card style, but we’ll show UNSATISFIED label in the card (next file)
+                status={"UNSATISFIED"}
+                deadlineText={isoToDMY(m.deadline)}
+                priority={priorityToCard(m.priority)}
+                logsCount={0}
+                checked={false}
+                isLocked={true}
+                onDelete={() => handleDeleteMilestone(m.id)} 
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyPlaceholder text="No unsatisfied milestones yet" />
+        )}
+      </div>
+
       {/* MODAL */}
-      {!isLocked && (
-        <MilestoneModal
-          open={isMilestoneModalOpen}
-          onClose={() => setIsMilestoneModalOpen(false)}
-          onCreate={handleCreateMilestone}
-        />
-      )}
+      <MilestoneModal
+        open={isMilestoneModalOpen}
+        onClose={() => setIsMilestoneModalOpen(false)}
+        onCreate={handleCreateMilestone}
+      />
 
       {creating && (
         <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
