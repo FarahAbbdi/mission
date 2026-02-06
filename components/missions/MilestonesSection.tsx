@@ -410,7 +410,7 @@ export default function MilestonesSection({
             })}
           </div>
         ) : (
-          <EmptyPlaceholder text="No active milestones yet" />
+          <EmptyPlaceholder text="No active milestones" />
         )}
       </div>
 
@@ -444,7 +444,7 @@ export default function MilestonesSection({
             })}
           </div>
         ) : (
-          <EmptyPlaceholder text="No completed milestones yet" />
+          <EmptyPlaceholder text="No completed milestones" />
         )}
       </div>
 
@@ -476,7 +476,7 @@ export default function MilestonesSection({
             })}
           </div>
         ) : (
-          <EmptyPlaceholder text="No unsatisfied milestones yet" />
+          <EmptyPlaceholder text="No unsatisfied milestones" />
         )}
       </div>
 

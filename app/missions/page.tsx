@@ -322,7 +322,7 @@ export default function MissionsPage() {
               ))}
             </MissionGrid>
           ) : (
-            <EmptyPlaceholder label="NO ACTIVE MISSIONS YET" />
+            <EmptyPlaceholder label="NO ACTIVE MISSIONS" />
           )}
         </SubSection>
 
@@ -343,7 +343,7 @@ export default function MissionsPage() {
             </MissionGrid>
           </SubSection>
         ) : (
-          <EmptySubSection title="COMPLETED" label="NO COMPLETED MISSIONS YET" />
+          <EmptySubSection title="COMPLETED" label="NO COMPLETED MISSIONS" />
         )}
 
         {expired.length ? (
@@ -363,7 +363,7 @@ export default function MissionsPage() {
             </MissionGrid>
           </SubSection>
         ) : (
-          <EmptySubSection title="UNSATISFIED" label="NO UNSATISFIED MISSIONS YET" />
+          <EmptySubSection title="UNSATISFIED" label="NO UNSATISFIED MISSIONS" />
         )}
       </section>
 
