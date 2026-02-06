@@ -187,17 +187,21 @@ export default function MissionDetailPage() {
     <main className="min-h-screen flex flex-col">
       {loading && <FullPageLoading />}
 
-      <div className="px-12">
+      {/* keep your desktop padding; just add responsive fallback */}
+      <div className="px-4 sm:px-8 lg:px-12">
         <MissionDetailTopBar />
       </div>
 
       <section className="relative flex-1">
-        <div className="absolute inset-y-0 left-[38%] right-0 bg-gray-50 z-0" />
-        <div className="absolute inset-y-0 left-[38%] w-[4px] bg-black z-10" />
+        {/* Desktop-only background split + divider (prevents mobile weird gaps) */}
+        <div className="hidden lg:block absolute inset-y-0 left-[38%] right-0 bg-gray-50 z-0" />
+        <div className="hidden lg:block absolute inset-y-0 left-[38%] w-[4px] bg-black z-10" />
 
-        <div className="relative z-20 h-full px-12">
-          <div className="flex h-full">
-            <div className="w-[38%] pr-10 pt-10 space-y-6">
+        <div className="relative z-20 h-full px-4 sm:px-8 lg:px-12">
+          {/* stack on mobile, side-by-side on desktop */}
+          <div className="flex flex-col lg:flex-row h-full">
+            {/* LEFT */}
+            <div className="w-full lg:w-[38%] lg:pr-10 pt-10 pb-10 lg:pb-16 space-y-6">
               {mission && (
                 <MissionDetailHeader
                   title={mission.name}
@@ -218,14 +222,14 @@ export default function MissionDetailPage() {
               )}
             </div>
 
-            <div className="flex-1 pl-10 pt-10 pb-16">
-              {/* render milestones for this mission */}
+            {/* RIGHT */}
+            <div className="w-full lg:flex-1 lg:pl-10 pt-0 lg:pt-10 pb-16">
               {missionId && mission && (
-                 <MilestonesSection
-                   missionId={missionId}
-                   missionStatus={mission.status}
-                  />
-                )}
+                <MilestonesSection
+                  missionId={missionId}
+                  missionStatus={mission.status}
+                />
+              )}
             </div>
           </div>
         </div>
