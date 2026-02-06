@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import MissionDetailTopBar from "@/components/missions/MissionDetailTopBar";
 import MissionDetailHeader from "@/components/missions/MissionDetailHeader";
 import MilestonesSection from "@/components/missions/MilestonesSection";
+import WatcherModal from "@/components/missions/WatcherModal";
 
 type MissionRow = {
   id: string;
@@ -72,6 +73,9 @@ export default function MissionDetailPage() {
 
   const [deleting, setDeleting] = useState(false);
   const [markingSatisfied, setMarkingSatisfied] = useState(false);
+
+  const [isWatcherModalOpen, setIsWatcherModalOpen] = useState(false);
+  const [addingWatcher, setAddingWatcher] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -166,6 +170,56 @@ export default function MissionDetailPage() {
     router.push("/missions");
   }
 
+  async function handleAddWatcherByEmail(email: string) {
+    if (!missionId) return;
+
+    setAddingWatcher(true);
+    setError(null);
+
+    try {
+      const {
+        data: { user },
+        error: userErr,
+      } = await supabase.auth.getUser();
+
+      if (userErr) throw new Error(userErr.message);
+      if (!user) throw new Error("You must be logged in.");
+
+      const profRes = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .ilike("email", email)
+        .single();
+
+      if (profRes.error || !profRes.data) {
+        throw new Error("No user found with that email.");
+      }
+
+      const watcherId = profRes.data.id;
+
+      if (watcherId === user.id) {
+        throw new Error("You can’t add yourself as a watcher.");
+      }
+
+      const ins = await supabase.from("watchers").insert({
+        mission_id: missionId,
+        watcher_id: watcherId,
+      });
+
+      if (ins.error) {
+        if (ins.error.code === "23505") {
+          throw new Error("That user is already watching this mission.");
+        }
+        throw new Error(ins.error.message);
+      }
+
+      await loadMissionAndWatchers();
+      setIsWatcherModalOpen(false);
+    } finally {
+      setAddingWatcher(false);
+    }
+  }
+
   if (!loading && (error || !mission)) {
     return (
       <main className="px-12 pt-10 space-y-4">
@@ -212,6 +266,8 @@ export default function MissionDetailPage() {
                   watchers={watchers}
                   onMarkSatisfied={handleMarkSatisfied}
                   onDeleteMission={handleDeleteMission}
+                  // add this prop in MissionDetailHeader and render a button that calls it
+                  onAddWatcher={() => setIsWatcherModalOpen(true)}
                 />
               )}
 
@@ -234,6 +290,17 @@ export default function MissionDetailPage() {
           </div>
         </div>
       </section>
+
+      {/* WATCHER MODAL */}
+      <WatcherModal
+        open={isWatcherModalOpen}
+        onClose={() => {
+          if (addingWatcher) return;
+          setIsWatcherModalOpen(false);
+        }}
+        loading={addingWatcher}
+        onCreate={async ({ email }) => handleAddWatcherByEmail(email)}
+      />
     </main>
   );
 }
