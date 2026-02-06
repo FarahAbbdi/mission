@@ -8,6 +8,7 @@ import MilestoneCard from "@/components/missions/MilestoneCard";
 import MilestoneModal, {
   CreateMilestonePayload,
 } from "@/components/missions/MilestoneModal";
+import LogModal, { CreateLogPayload } from "@/components/missions/LogModal";
 
 type Props = {
   missionId: string;
@@ -85,6 +86,11 @@ export default function MilestonesSection({
   const [creating, setCreating] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // LOG MODAL state
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [logMilestoneId, setLogMilestoneId] = useState<string | null>(null);
+  const [savingLog, setSavingLog] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -233,6 +239,33 @@ export default function MilestonesSection({
     setDeletingId(null);
   }
 
+  // LOG MODAL helpers
+  function openLogModal(milestoneId: string) {
+    setLogMilestoneId(milestoneId);
+    setIsLogModalOpen(true);
+  }
+
+  function closeLogModal() {
+    if (savingLog) return;
+    setIsLogModalOpen(false);
+    setLogMilestoneId(null);
+  }
+
+  // For now: just close modal (no DB insert yet)
+  async function handleCreateLog(_payload: CreateLogPayload) {
+    if (!logMilestoneId) return;
+
+    setSavingLog(true);
+    setError(null);
+
+    try {
+      // later: insert into supabase.logs using logMilestoneId
+      closeLogModal();
+    } finally {
+      setSavingLog(false);
+    }
+  }
+
   return (
     <section className="space-y-8">
       {/* Header */}
@@ -240,7 +273,8 @@ export default function MilestonesSection({
         <div className="space-y-1">
           <h2 className="text-3xl font-black tracking-tight">MILESTONES</h2>
           <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-            {activeRows.length} active • {completedRows.length} completed • {unsatisfiedRows.length} unsatisfied
+            {activeRows.length} active • {completedRows.length} completed •{" "}
+            {unsatisfiedRows.length} unsatisfied
           </div>
 
           {error && (
@@ -249,9 +283,9 @@ export default function MilestonesSection({
             </div>
           )}
 
-          {(togglingId || deletingId) && (
+          {(togglingId || deletingId || savingLog) && (
             <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-              {togglingId ? "Updating…" : "Deleting…"}
+              {togglingId ? "Updating…" : deletingId ? "Deleting…" : "Saving log…"}
             </div>
           )}
         </div>
@@ -259,7 +293,10 @@ export default function MilestonesSection({
         {/* Hide ADD MILESTONE button when mission is completed/expired */}
         {!isMissionLocked && (
           <div className="w-[200px]">
-            <BrutalButton variant="outline" onClick={() => setIsMilestoneModalOpen(true)}>
+            <BrutalButton
+              variant="outline"
+              onClick={() => setIsMilestoneModalOpen(true)}
+            >
               <span className="inline-flex items-center gap-2 text-sm">
                 <span className="text-base leading-none">+</span>
                 ADD MILESTONE
@@ -287,9 +324,9 @@ export default function MilestonesSection({
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={false}
-                isLocked={isMissionLocked} // hides checkbox + add log if mission locked
+                isLocked={isMissionLocked}
                 onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
-                onAddLog={() => console.log("[milestone] add log:", m.id)}
+                onAddLog={() => openLogModal(m.id)}   // open modal
                 onDelete={() => handleDeleteMilestone(m.id)}
               />
             ))}
@@ -317,9 +354,9 @@ export default function MilestonesSection({
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={true}
-                isLocked={isMissionLocked} // still allows delete (card controls it)
+                isLocked={isMissionLocked}
                 onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
-                onAddLog={() => console.log("[milestone] add log:", m.id)}
+                onAddLog={() => openLogModal(m.id)}   // open modal
                 onDelete={() => handleDeleteMilestone(m.id)}
               />
             ))}
@@ -342,14 +379,13 @@ export default function MilestonesSection({
                 key={m.id}
                 title={m.name}
                 subtitle={m.notes ?? undefined}
-                // We pass UNSATISFIED for the card style, but we’ll show UNSATISFIED label in the card (next file)
-                status={"UNSATISFIED"}
+                status={"UNSATISFIED" as any} // if your card type doesn't include this, add it there
                 deadlineText={isoToDMY(m.deadline)}
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={false}
                 isLocked={true}
-                onDelete={() => handleDeleteMilestone(m.id)} 
+                onDelete={() => handleDeleteMilestone(m.id)}
               />
             ))}
           </div>
@@ -358,11 +394,18 @@ export default function MilestonesSection({
         )}
       </div>
 
-      {/* MODAL */}
+      {/* MILESTONE MODAL */}
       <MilestoneModal
         open={isMilestoneModalOpen}
         onClose={() => setIsMilestoneModalOpen(false)}
         onCreate={handleCreateMilestone}
+      />
+
+      {/* LOG MODAL  */}
+      <LogModal
+        open={isLogModalOpen}
+        onClose={closeLogModal}
+        onCreate={handleCreateLog}
       />
 
       {creating && (
