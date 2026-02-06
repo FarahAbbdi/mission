@@ -1,16 +1,26 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { BrutalButton } from "@/components/ui/BrutalButton";
+import LogCard from "@/components/missions/LogCard";
+
+type LogRowUI = {
+  id: string;
+  content: string;
+  created_at: string; // ISO
+};
 
 type Props = {
   title: string;
   subtitle?: string;
-  status: "ACTIVE" | "COMPLETED" | "UNSATISFIED";
+  status: "ACTIVE" | "COMPLETED" | "EXPIRED" | "UNSATISFIED";
   deadlineText: string;
   priority: "LOW" | "MEDIUM" | "HIGH";
+  logs?: LogRowUI[];
   logsCount?: number;
   checked?: boolean;
   isLocked?: boolean;
+
   onToggleChecked?: () => void;
   onAddLog?: () => void;
   onDelete?: () => void;
@@ -23,6 +33,14 @@ function CalendarIcon() {
       <path d="M7 4v3M17 4v3" stroke="currentColor" strokeWidth="2" />
       <path d="M5 9h14" stroke="currentColor" strokeWidth="2" />
       <path d="M6 6h12v14H6V6Z" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function ChevronDown() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -46,18 +64,14 @@ function TrashIcon() {
 }
 
 function StatusPill({ status }: { status: Props["status"] }) {
+  const filled = status === "COMPLETED";
   return (
     <div
-      className="
-        self-start
-        inline-flex
-        items-center
-        border-2 border-black
-        px-4 py-1.5
-        text-[9px] font-black uppercase tracking-widest
-        leading-none
-        bg-white
-      "
+      className={[
+        "shrink-0 inline-flex items-center whitespace-nowrap leading-none",
+        "border-2 border-black px-4 py-1.5 text-[9px] font-black uppercase tracking-widest",
+        filled ? "bg-black text-white" : "bg-white text-black",
+      ].join(" ")}
     >
       {status}
     </div>
@@ -85,7 +99,7 @@ function CheckBox({
       aria-label={checked ? "Mark incomplete" : "Mark complete"}
       onClick={onToggle}
       className={[
-        "h-7 w-7 border-2 border-black grid place-items-center",
+        "h-7 w-7 border-2 border-black grid place-items-center shrink-0",
         checked ? "bg-black text-white" : "bg-white text-black",
       ].join(" ")}
     >
@@ -104,21 +118,27 @@ export default function MilestoneCard({
   status,
   deadlineText,
   priority,
-  logsCount = 0,
+  logs = [],
+  logsCount,
   checked,
-  isLocked: isLockedProp,
+  isLocked = false,
   onToggleChecked,
   onAddLog,
   onDelete,
   onClick,
 }: Props) {
-  // Lock milestone interactions for completed/expired missions
-  // If parent passes isLocked, respect it; otherwise lock by status.
-  const isLocked = isLockedProp ?? (status === "COMPLETED" || status === "UNSATISFIED");
+  const [openLogs, setOpenLogs] = useState(false);
+
+  const count = useMemo(
+    () => (typeof logsCount === "number" ? logsCount : logs.length),
+    [logs.length, logsCount]
+  );
+
+  const showCheckbox = !isLocked && status === "ACTIVE";
+  const showAddLog = !isLocked && (status === "ACTIVE" || status === "COMPLETED");
 
   return (
     <div className="relative w-full">
-      {/* permanent brutal shadow */}
       <div className="absolute inset-0 bg-black translate-x-2 translate-y-2" />
 
       <div
@@ -129,16 +149,18 @@ export default function MilestoneCard({
       >
         {/* TOP */}
         <div className="px-5 py-4">
-          <div className="flex justify-between gap-2">
-            <div className="flex gap-4">
-              {/* Hide checkbox when locked */}
-              {!isLocked && (
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex gap-4 min-w-0">
+              {showCheckbox && (
                 <CheckBox checked={checked} onToggle={onToggleChecked} />
               )}
 
-              <div className="space-y-1">
-                <div className="text-lg font-black leading-tight">{title}</div>
-                <div className="text-sm text-gray-600">{subtitle}</div>
+              <div className="space-y-1 min-w-0">
+                <div className="text-lg font-black truncate">{title}</div>
+
+                {subtitle ? (
+                  <div className="text-sm text-gray-600 break-words">{subtitle}</div>
+                ) : null}
 
                 <div className="pt-1.5 flex flex-wrap items-center gap-4 text-sm">
                   <div className="flex items-center gap-2">
@@ -148,12 +170,17 @@ export default function MilestoneCard({
 
                   <PriorityPill priority={priority} />
 
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <ChevronRight />
+                  <button
+                    type="button"
+                    onClick={() => setOpenLogs((v) => !v)}
+                    className="flex items-center gap-2 text-gray-600 hover:text-black"
+                    aria-expanded={openLogs}
+                  >
+                    {openLogs ? <ChevronDown /> : <ChevronRight />}
                     <span className="font-semibold">
-                      {logsCount} log{logsCount === 1 ? "" : "s"}
+                      {count} log{count === 1 ? "" : "s"}
                     </span>
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -162,8 +189,8 @@ export default function MilestoneCard({
           </div>
         </div>
 
-        {/* Hide ADD LOG section when locked */}
-        {!isLocked && (
+        {/* ADD LOG (always visible for ACTIVE/COMPLETED when not locked) */}
+        {showAddLog && (
           <>
             <div className="border-t-2 border-black" />
             <div className="px-5 py-4">
@@ -177,7 +204,27 @@ export default function MilestoneCard({
           </>
         )}
 
-        {/* DELETE always visible + functional */}
+        {/* EXPANDED LOGS */}
+        {openLogs && (
+          <>
+            <div className="border-t-2 border-black" />
+            <div className="px-5 py-6 space-y-6">
+              {logs.length ? (
+                logs.map((l) => (
+                  <LogCard key={l.id} createdAtISO={l.created_at} content={l.content} />
+                ))
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 px-6 py-10 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                    No logs entries
+                  </p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* DELETE (always visible) */}
         <div className="border-t-2 border-black" />
         <div className="px-5 py-4">
           <BrutalButton variant="outline" onClick={onDelete}>

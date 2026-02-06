@@ -29,6 +29,13 @@ type MilestoneRow = {
   created_at?: string;
 };
 
+type LogRow = {
+  id: string;
+  milestone_id: string;
+  content: string;
+  created_at: string; // ISO
+};
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-xs font-black uppercase tracking-wide text-black">
@@ -76,11 +83,16 @@ export default function MilestonesSection({
   missionId,
   missionStatus = "active",
 }: Props) {
-  const isMissionLocked = missionStatus === "completed" || missionStatus === "expired";
+  const isMissionLocked =
+    missionStatus === "completed" || missionStatus === "expired";
 
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
 
   const [rows, setRows] = useState<MilestoneRow[]>([]);
+  const [logsByMilestone, setLogsByMilestone] = useState<Record<string, LogRow[]>>(
+    {}
+  );
+
   const [loading, setLoading] = useState(true);
 
   const [creating, setCreating] = useState(false);
@@ -94,12 +106,13 @@ export default function MilestonesSection({
 
   const [error, setError] = useState<string | null>(null);
 
-  async function loadMilestones() {
+  async function loadMilestonesAndLogs() {
     if (!missionId) return;
 
     setLoading(true);
     setError(null);
 
+    // 1) milestones
     const res = await supabase
       .from("milestones")
       .select("id, mission_id, name, notes, deadline, priority, status, created_at")
@@ -109,16 +122,46 @@ export default function MilestonesSection({
     if (res.error) {
       setError(res.error.message);
       setRows([]);
+      setLogsByMilestone({});
       setLoading(false);
       return;
     }
 
-    setRows((res.data ?? []) as MilestoneRow[]);
+    const milestoneRows = (res.data ?? []) as MilestoneRow[];
+    setRows(milestoneRows);
+
+    // 2) logs for those milestones
+    const ids = milestoneRows.map((m) => m.id);
+    if (!ids.length) {
+      setLogsByMilestone({});
+      setLoading(false);
+      return;
+    }
+
+    const logsRes = await supabase
+      .from("logs")
+      .select("id, milestone_id, content, created_at")
+      .in("milestone_id", ids)
+      .order("created_at", { ascending: false });
+
+    if (logsRes.error) {
+      // keep milestones even if logs fail
+      setLogsByMilestone({});
+      setLoading(false);
+      return;
+    }
+
+    const map: Record<string, LogRow[]> = {};
+    for (const l of (logsRes.data ?? []) as LogRow[]) {
+      (map[l.milestone_id] ||= []).push(l);
+    }
+    setLogsByMilestone(map);
+
     setLoading(false);
   }
 
   useEffect(() => {
-    loadMilestones();
+    loadMilestonesAndLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
 
@@ -133,7 +176,6 @@ export default function MilestonesSection({
       if (isMissionLocked) return true;
 
       // Otherwise: active milestone past deadline is unsatisfied
-      // NOTE: deadline is YYYY-MM-DD so lex compare works
       return r.deadline < today;
     });
   }, [rows, isMissionLocked, today]);
@@ -145,7 +187,7 @@ export default function MilestonesSection({
       // active mission only
       if (isMissionLocked) return false;
 
-      // exclude unsatisfied (past deadline)
+      // exclude unsatisfied
       return !(r.deadline < today);
     });
   }, [rows, isMissionLocked, today]);
@@ -180,7 +222,14 @@ export default function MilestonesSection({
       return;
     }
 
-    if (insertRes.data) setRows((prev) => [insertRes.data as MilestoneRow, ...prev]);
+    if (insertRes.data) {
+      const newRow = insertRes.data as MilestoneRow;
+      setRows((prev) => [newRow, ...prev]);
+      setLogsByMilestone((prev) => ({
+        ...prev,
+        [newRow.id]: prev[newRow.id] ?? [],
+      }));
+    }
 
     setIsMilestoneModalOpen(false);
     setCreating(false);
@@ -216,12 +265,18 @@ export default function MilestonesSection({
   }
 
   async function handleDeleteMilestone(id: string) {
-    // delete is allowed even when mission locked (you asked to keep it)
     setError(null);
     setDeletingId(id);
 
     const prevRows = rows;
+    const prevLogs = logsByMilestone;
+
     setRows((prev) => prev.filter((r) => r.id !== id));
+    setLogsByMilestone((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
 
     const delRes = await supabase
       .from("milestones")
@@ -231,6 +286,7 @@ export default function MilestonesSection({
 
     if (delRes.error) {
       setRows(prevRows);
+      setLogsByMilestone(prevLogs);
       setError(delRes.error.message);
       setDeletingId(null);
       return;
@@ -251,19 +307,37 @@ export default function MilestonesSection({
     setLogMilestoneId(null);
   }
 
-  // For now: just close modal (no DB insert yet)
-  async function handleCreateLog(_payload: CreateLogPayload) {
+  async function handleCreateLog(payload: CreateLogPayload) {
     if (!logMilestoneId) return;
 
     setSavingLog(true);
     setError(null);
 
-    try {
-      // later: insert into supabase.logs using logMilestoneId
-      closeLogModal();
-    } finally {
+    const ins = await supabase
+      .from("logs")
+      .insert({
+        milestone_id: logMilestoneId,
+        content: payload.content.trim(),
+      })
+      .select("id, milestone_id, content, created_at")
+      .single();
+
+    if (ins.error) {
+      setError(ins.error.message);
       setSavingLog(false);
+      return;
     }
+
+    const newLog = ins.data as LogRow;
+
+    setLogsByMilestone((prev) => {
+      const next = { ...prev };
+      next[logMilestoneId] = [newLog, ...(next[logMilestoneId] ?? [])];
+      return next;
+    });
+
+    setSavingLog(false);
+    closeLogModal();
   }
 
   return (
@@ -314,22 +388,26 @@ export default function MilestonesSection({
           <EmptyPlaceholder text="Loading…" />
         ) : activeRows.length ? (
           <div className="space-y-6">
-            {activeRows.map((m) => (
-              <MilestoneCard
-                key={m.id}
-                title={m.name}
-                subtitle={m.notes ?? undefined}
-                status={statusToCard(m.status)}
-                deadlineText={isoToDMY(m.deadline)}
-                priority={priorityToCard(m.priority)}
-                logsCount={0}
-                checked={false}
-                isLocked={isMissionLocked}
-                onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
-                onAddLog={() => openLogModal(m.id)}   // open modal
-                onDelete={() => handleDeleteMilestone(m.id)}
-              />
-            ))}
+            {activeRows.map((m) => {
+              const logs = logsByMilestone[m.id] ?? [];
+              return (
+                <MilestoneCard
+                  key={m.id}
+                  title={m.name}
+                  subtitle={m.notes ?? undefined}
+                  status={statusToCard(m.status)}
+                  deadlineText={isoToDMY(m.deadline)}
+                  priority={priorityToCard(m.priority)}
+                  logs={logs as any}
+                  logsCount={logs.length}
+                  checked={false}
+                  isLocked={isMissionLocked}
+                  onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
+                  onAddLog={() => openLogModal(m.id)}
+                  onDelete={() => handleDeleteMilestone(m.id)}
+                />
+              );
+            })}
           </div>
         ) : (
           <EmptyPlaceholder text="No active milestones yet" />
@@ -344,29 +422,33 @@ export default function MilestonesSection({
           <EmptyPlaceholder text="Loading…" />
         ) : completedRows.length ? (
           <div className="space-y-6">
-            {completedRows.map((m) => (
-              <MilestoneCard
-                key={m.id}
-                title={m.name}
-                subtitle={m.notes ?? undefined}
-                status={statusToCard(m.status)}
-                deadlineText={isoToDMY(m.deadline)}
-                priority={priorityToCard(m.priority)}
-                logsCount={0}
-                checked={true}
-                isLocked={isMissionLocked}
-                onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
-                onAddLog={() => openLogModal(m.id)}   // open modal
-                onDelete={() => handleDeleteMilestone(m.id)}
-              />
-            ))}
+            {completedRows.map((m) => {
+              const logs = logsByMilestone[m.id] ?? [];
+              return (
+                <MilestoneCard
+                  key={m.id}
+                  title={m.name}
+                  subtitle={m.notes ?? undefined}
+                  status={statusToCard(m.status)}
+                  deadlineText={isoToDMY(m.deadline)}
+                  priority={priorityToCard(m.priority)}
+                  logs={logs as any}
+                  logsCount={logs.length}
+                  checked={true}
+                  isLocked={isMissionLocked}
+                  onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
+                  onAddLog={() => openLogModal(m.id)}
+                  onDelete={() => handleDeleteMilestone(m.id)}
+                />
+              );
+            })}
           </div>
         ) : (
           <EmptyPlaceholder text="No completed milestones yet" />
         )}
       </div>
 
-      {/* UNSATISFIED (UI label) */}
+      {/* UNSATISFIED */}
       <div className="space-y-4">
         <SectionLabel>UNSATISFIED</SectionLabel>
 
@@ -374,20 +456,24 @@ export default function MilestonesSection({
           <EmptyPlaceholder text="Loading…" />
         ) : unsatisfiedRows.length ? (
           <div className="space-y-6">
-            {unsatisfiedRows.map((m) => (
-              <MilestoneCard
-                key={m.id}
-                title={m.name}
-                subtitle={m.notes ?? undefined}
-                status={"UNSATISFIED" as any} // if your card type doesn't include this, add it there
-                deadlineText={isoToDMY(m.deadline)}
-                priority={priorityToCard(m.priority)}
-                logsCount={0}
-                checked={false}
-                isLocked={true}
-                onDelete={() => handleDeleteMilestone(m.id)}
-              />
-            ))}
+            {unsatisfiedRows.map((m) => {
+              const logs = logsByMilestone[m.id] ?? [];
+              return (
+                <MilestoneCard
+                  key={m.id}
+                  title={m.name}
+                  subtitle={m.notes ?? undefined}
+                  status={"UNSATISFIED" as any}
+                  deadlineText={isoToDMY(m.deadline)}
+                  priority={priorityToCard(m.priority)}
+                  logs={logs as any}
+                  logsCount={logs.length}
+                  checked={false}
+                  isLocked={true}
+                  onDelete={() => handleDeleteMilestone(m.id)}
+                />
+              );
+            })}
           </div>
         ) : (
           <EmptyPlaceholder text="No unsatisfied milestones yet" />
@@ -401,7 +487,7 @@ export default function MilestonesSection({
         onCreate={handleCreateMilestone}
       />
 
-      {/* LOG MODAL  */}
+      {/* LOG MODAL */}
       <LogModal
         open={isLogModalOpen}
         onClose={closeLogModal}
