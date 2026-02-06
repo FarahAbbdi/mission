@@ -100,7 +100,7 @@ function CheckBox({
 
 export default function MilestoneCard({
   title,
-  subtitle = "Recruit 10 beta testers",
+  subtitle,
   status,
   deadlineText,
   priority,
