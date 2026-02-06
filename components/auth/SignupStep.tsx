@@ -1,21 +1,28 @@
+// components/auth/SignupStep.tsx
 import { TextInput } from "@/components/ui/TextInput";
 import { BrutalButton } from "@/components/ui/BrutalButton";
 
 type Props = {
+  name: string;
   email: string;
   password: string;
   confirmPassword: string;
+
+  setName: (v: string) => void;
   setEmail: (v: string) => void;
   setPassword: (v: string) => void;
   setConfirmPassword: (v: string) => void;
+
   onSignup: () => void;
   onBackToEmail: () => void;
 };
 
 export function SignupStep({
+  name,
   email,
   password,
   confirmPassword,
+  setName,
   setEmail,
   setPassword,
   setConfirmPassword,
@@ -30,6 +37,13 @@ export function SignupStep({
         onSignup();
       }}
     >
+      <TextInput
+        label="Your Name"
+        placeholder="Enter your name"
+        value={name}
+        onChange={setName}
+      />
+
       <TextInput
         label="Your Email"
         type="email"
@@ -54,9 +68,7 @@ export function SignupStep({
         onChange={setConfirmPassword}
       />
 
-      <BrutalButton type="submit">
-        SIGN UP →
-      </BrutalButton>
+      <BrutalButton type="submit">SIGN UP →</BrutalButton>
 
       <button
         type="button"
