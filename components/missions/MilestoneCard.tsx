@@ -10,6 +10,7 @@ type Props = {
   priority: "LOW" | "MEDIUM" | "HIGH";
   logsCount?: number;
   checked?: boolean;
+  isLocked?: boolean;
   onToggleChecked?: () => void;
   onAddLog?: () => void;
   onDelete?: () => void;
@@ -82,7 +83,7 @@ function CheckBox({
     <button
       type="button"
       aria-label={checked ? "Mark incomplete" : "Mark complete"}
-      onClick={() => onToggle?.()}
+      onClick={onToggle}
       className={[
         "h-7 w-7 border-2 border-black grid place-items-center",
         checked ? "bg-black text-white" : "bg-white text-black",
@@ -105,13 +106,15 @@ export default function MilestoneCard({
   priority,
   logsCount = 0,
   checked,
+  isLocked: isLockedProp,
   onToggleChecked,
   onAddLog,
   onDelete,
   onClick,
 }: Props) {
-  // lock checkbox + add log for completed/expired
-  const isLocked = status === "COMPLETED" || status === "EXPIRED";
+  // Lock milestone interactions for completed/expired missions
+  // If parent passes isLocked, respect it; otherwise lock by status.
+  const isLocked = isLockedProp ?? (status === "COMPLETED" || status === "EXPIRED");
 
   return (
     <div className="relative w-full">
@@ -128,7 +131,7 @@ export default function MilestoneCard({
         <div className="px-5 py-4">
           <div className="flex justify-between gap-2">
             <div className="flex gap-4">
-              {/* only show checkbox when not locked */}
+              {/* Hide checkbox when locked */}
               {!isLocked && (
                 <CheckBox checked={checked} onToggle={onToggleChecked} />
               )}
@@ -159,12 +162,12 @@ export default function MilestoneCard({
           </div>
         </div>
 
-        {/* ADD LOG only when not locked */}
+        {/* Hide ADD LOG section when locked */}
         {!isLocked && (
           <>
             <div className="border-t-2 border-black" />
             <div className="px-5 py-4">
-              <BrutalButton variant="outline" onClick={() => onAddLog?.()}>
+              <BrutalButton variant="outline" onClick={onAddLog}>
                 <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest">
                   <span className="text-base">+</span>
                   ADD LOG
@@ -174,10 +177,10 @@ export default function MilestoneCard({
           </>
         )}
 
-        {/* DELETE always (even completed/expired) */}
+        {/* DELETE always visible + functional */}
         <div className="border-t-2 border-black" />
         <div className="px-5 py-4">
-          <BrutalButton variant="outline" onClick={() => onDelete?.()}>
+          <BrutalButton variant="outline" onClick={onDelete}>
             <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest">
               <TrashIcon />
               DELETE MILESTONE

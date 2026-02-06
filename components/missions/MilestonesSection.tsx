@@ -249,6 +249,7 @@ export default function MilestonesSection({
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={false}
+                isLocked={isLocked}
                 onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => handleDeleteMilestone(m.id)}
@@ -278,6 +279,7 @@ export default function MilestonesSection({
                 priority={priorityToCard(m.priority)}
                 logsCount={0}
                 checked={true}
+                isLocked={isLocked}
                 onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
                 onAddLog={() => console.log("[milestone] add log:", m.id)}
                 onDelete={() => handleDeleteMilestone(m.id)}
