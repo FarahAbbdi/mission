@@ -47,6 +47,11 @@ export default function AuthPage() {
       return;
     }
 
+    if (!trimmedEmail) {
+      setError("Email is required");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
@@ -70,27 +75,29 @@ export default function AuthPage() {
       return;
     }
 
-    // 2) Insert/upsert into profiles
-    // Note: Depending on your Supabase email-confirm settings,
-    // data.user should still be present here (usually is).
     const userId = data.user?.id;
 
     if (!userId) {
       setLoading(false);
-      setError("Signup succeeded, but no user returned. Check email confirmation settings.");
+      setError(
+        "Signup succeeded, but no user returned. Check email confirmation settings."
+      );
       return;
     }
 
+    // 2) Insert/upsert into profiles (store BOTH name + email)
     const { error: profileErr } = await supabase.from("profiles").upsert(
       {
         id: userId,
         name: trimmedName,
+        email: trimmedEmail,
+        // if you have updated_at default/trigger you can omit it
+        // updated_at: new Date().toISOString(),
       },
       { onConflict: "id" }
     );
 
     if (profileErr) {
-      // Auth user exists, but profile insert failed. Surface it clearly.
       setLoading(false);
       setError(profileErr.message);
       return;
