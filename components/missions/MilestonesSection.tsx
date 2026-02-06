@@ -5,12 +5,11 @@ import { supabase } from "@/lib/supabaseClient";
 
 import { BrutalButton } from "@/components/ui/BrutalButton";
 import MilestoneCard from "@/components/missions/MilestoneCard";
-import MilestoneModal, {
-  CreateMilestonePayload,
-} from "@/components/missions/MilestoneModal";
+import MilestoneModal, { CreateMilestonePayload } from "@/components/missions/MilestoneModal";
 
 type Props = {
   missionId: string;
+  missionStatus?: "active" | "completed" | "expired"; //
 };
 
 type MilestoneStatus = "active" | "completed";
@@ -21,7 +20,7 @@ type MilestoneRow = {
   mission_id: string;
   name: string;
   notes: string | null;
-  deadline: string; // YYYY-MM-DD
+  deadline: string;
   priority: MilestonePriority;
   status: MilestoneStatus;
   created_at?: string;
@@ -61,7 +60,12 @@ function statusToCard(s: MilestoneStatus): "ACTIVE" | "COMPLETED" {
   return s === "completed" ? "COMPLETED" : "ACTIVE";
 }
 
-export default function MilestonesSection({ missionId }: Props) {
+export default function MilestonesSection({
+  missionId,
+  missionStatus = "active",
+}: Props) {
+  const isLocked = missionStatus === "completed" || missionStatus === "expired";
+
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
 
   const [rows, setRows] = useState<MilestoneRow[]>([]);
@@ -102,12 +106,11 @@ export default function MilestonesSection({ missionId }: Props) {
   }, [missionId]);
 
   const activeRows = useMemo(() => rows.filter((r) => r.status === "active"), [rows]);
-  const completedRows = useMemo(
-    () => rows.filter((r) => r.status === "completed"),
-    [rows]
-  );
+  const completedRows = useMemo(() => rows.filter((r) => r.status === "completed"), [rows]);
 
   async function handleCreateMilestone(payload: CreateMilestonePayload) {
+    if (isLocked) return;
+
     setCreating(true);
     setError(null);
 
@@ -130,23 +133,21 @@ export default function MilestonesSection({ missionId }: Props) {
       return;
     }
 
-    // add immediately (no refetch needed)
     if (insertRes.data) setRows((prev) => [insertRes.data as MilestoneRow, ...prev]);
 
     setIsMilestoneModalOpen(false);
     setCreating(false);
   }
 
-  // ✅ checkbox toggle (active <-> completed)
   async function handleToggleMilestoneStatus(id: string, current: MilestoneStatus) {
+    if (isLocked) return; // optional: also lock status changes
+
     const next: MilestoneStatus = current === "active" ? "completed" : "active";
 
     setError(null);
     setTogglingId(id);
 
     const prevRows = rows;
-
-    // optimistic UI update
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: next } : r)));
 
     const updRes = await supabase
@@ -158,7 +159,7 @@ export default function MilestonesSection({ missionId }: Props) {
       .single();
 
     if (updRes.error) {
-      setRows(prevRows); // rollback
+      setRows(prevRows);
       setError(updRes.error.message);
       setTogglingId(null);
       return;
@@ -167,14 +168,12 @@ export default function MilestonesSection({ missionId }: Props) {
     setTogglingId(null);
   }
 
-  // ✅ delete (remove from DB + UI)
   async function handleDeleteMilestone(id: string) {
+    // you said delete can still be allowed, so don't lock this
     setError(null);
     setDeletingId(id);
 
     const prevRows = rows;
-
-    // optimistic UI remove
     setRows((prev) => prev.filter((r) => r.id !== id));
 
     const delRes = await supabase
@@ -184,7 +183,7 @@ export default function MilestonesSection({ missionId }: Props) {
       .eq("mission_id", missionId);
 
     if (delRes.error) {
-      setRows(prevRows); // rollback
+      setRows(prevRows);
       setError(delRes.error.message);
       setDeletingId(null);
       return;
@@ -219,14 +218,17 @@ export default function MilestonesSection({ missionId }: Props) {
           )}
         </div>
 
-        <div className="w-[200px]">
-          <BrutalButton variant="outline" onClick={() => setIsMilestoneModalOpen(true)}>
-            <span className="inline-flex items-center gap-2 text-sm">
-              <span className="text-base leading-none">+</span>
-              ADD MILESTONE
-            </span>
-          </BrutalButton>
-        </div>
+        {/* HIDE ADD BUTTON WHEN LOCKED */}
+        {!isLocked && (
+          <div className="w-[200px]">
+            <BrutalButton variant="outline" onClick={() => setIsMilestoneModalOpen(true)}>
+              <span className="inline-flex items-center gap-2 text-sm">
+                <span className="text-base leading-none">+</span>
+                ADD MILESTONE
+              </span>
+            </BrutalButton>
+          </div>
+        )}
       </div>
 
       {/* ACTIVE */}
@@ -288,11 +290,13 @@ export default function MilestonesSection({ missionId }: Props) {
       </div>
 
       {/* MODAL */}
-      <MilestoneModal
-        open={isMilestoneModalOpen}
-        onClose={() => setIsMilestoneModalOpen(false)}
-        onCreate={handleCreateMilestone}
-      />
+      {!isLocked && (
+        <MilestoneModal
+          open={isMilestoneModalOpen}
+          onClose={() => setIsMilestoneModalOpen(false)}
+          onCreate={handleCreateMilestone}
+        />
+      )}
 
       {creating && (
         <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">

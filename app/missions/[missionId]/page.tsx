@@ -220,7 +220,12 @@ export default function MissionDetailPage() {
 
             <div className="flex-1 pl-10 pt-10 pb-16">
               {/* render milestones for this mission */}
-              {missionId && <MilestonesSection missionId={missionId} />}
+              {missionId && mission && (
+                 <MilestonesSection
+                   missionId={missionId}
+                   missionStatus={mission.status}
+                  />
+                )}
             </div>
           </div>
         </div>
