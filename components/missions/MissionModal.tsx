@@ -31,7 +31,6 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
     return true;
   }, [name, startDate, endDate]);
 
-  // reset form whenever modal opens
   useEffect(() => {
     if (!open) return;
     setName("");
@@ -42,7 +41,6 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
     setSubmitting(false);
   }, [open]);
 
-  // Escape closes modal
   useEffect(() => {
     if (!open) return;
 
@@ -79,7 +77,6 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
         description: description.trim(),
       });
 
-      // only close if create didn't throw
       onClose();
     } catch (e: any) {
       setError(e?.message ?? "Something went wrong.");
@@ -104,95 +101,103 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
           {/* brutal shadow */}
           <div className="absolute inset-0 bg-black translate-x-3 translate-y-3" />
 
-          <div className="relative z-10 border-4 border-black bg-white">
-            {/* Header */}
-            <div className="flex items-center justify-between px-8 py-6">
-              <h2 className="text-4xl font-black tracking-tight leading-none">
-                CREATE MISSION
-              </h2>
+          {/* shell */}
+          <div className="relative z-10 border-4 border-black bg-white overflow-hidden">
+            {/* ✅ Constrain height + enable internal scrolling */}
+            <div className="max-h-[85vh] flex flex-col">
+              {/* Header (fixed) */}
+              <div className="flex items-center justify-between px-8 py-6">
+                <h2 className="text-4xl font-black tracking-tight leading-none">
+                  CREATE MISSION
+                </h2>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="h-12 w-12 border-2 border-black grid place-items-center hover:bg-black hover:text-white transition-colors"
-                aria-label="Close"
-              >
-                <span className="text-3xl leading-none block p-0 m-0">×</span>
-              </button>
-            </div>
-
-            <div className="border-b-4 border-black" />
-
-            {/* Body */}
-            <div className="px-8 py-8 space-y-8">
-              <TextInput
-                label="Mission Name *"
-                placeholder="Enter mission name"
-                value={name}
-                onChange={setName}
-                name="mission_name"
-                required
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <TextInput
-                  label="Start Date *"
-                  type="date"
-                  placeholder="Select start date"
-                  value={startDate}
-                  onChange={setStartDate}
-                  name="start_date"
-                  required
-                />
-
-                <TextInput
-                  label="End Date *"
-                  type="date"
-                  placeholder="Select end date"
-                  value={endDate}
-                  onChange={setEndDate}
-                  name="end_date"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wide text-gray-700">
-                  Description
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe your mission"
-                  className="w-full border-[1.5px] border-black p-4 outline-none focus:border-black min-h-[140px]"
-                />
-              </div>
-
-              {error && (
-                <p className="text-sm font-semibold text-red-600">{error}</p>
-              )}
-
-              {/* Footer buttons */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                {/* If your BrutalButton doesn't support disabled yet, see note below */}
-                <div
-                  className={
-                    submitting || !canSubmit
-                      ? "opacity-60 pointer-events-none"
-                      : ""
-                  }
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="h-12 w-12 border-2 border-black grid place-items-center hover:bg-black hover:text-white transition-colors"
+                  aria-label="Close"
                 >
-                  <BrutalButton type="button" variant="solid" onClick={handleSubmit}>
-                    {submitting ? "CREATING…" : "CREATE MISSION"}
-                  </BrutalButton>
+                  <span className="text-3xl leading-none block p-0 m-0">×</span>
+                </button>
+              </div>
+
+              <div className="border-b-4 border-black" />
+
+              {/* ✅ Body (scrollable) */}
+              <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
+                <TextInput
+                  label="Mission Name *"
+                  placeholder="Enter mission name"
+                  value={name}
+                  onChange={setName}
+                  name="mission_name"
+                  required
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <TextInput
+                    label="Start Date *"
+                    type="date"
+                    placeholder="Select start date"
+                    value={startDate}
+                    onChange={setStartDate}
+                    name="start_date"
+                    required
+                  />
+
+                  <TextInput
+                    label="End Date *"
+                    type="date"
+                    placeholder="Select end date"
+                    value={endDate}
+                    onChange={setEndDate}
+                    name="end_date"
+                    required
+                  />
                 </div>
 
-                <div className={submitting ? "opacity-60 pointer-events-none" : ""}>
-                  <BrutalButton type="button" variant="outline" onClick={onClose}>
-                    CANCEL
-                  </BrutalButton>
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase tracking-wide text-gray-700">
+                    Description
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe your mission"
+                    className="w-full border-[1.5px] border-black p-4 outline-none focus:border-black min-h-[140px]"
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-sm font-semibold text-red-600">{error}</p>
+                )}
+
+                {/* Footer buttons (still inside body so it scrolls if needed) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                  <div
+                    className={
+                      submitting || !canSubmit
+                        ? "opacity-60 pointer-events-none"
+                        : ""
+                    }
+                  >
+                    <BrutalButton
+                      type="button"
+                      variant="solid"
+                      onClick={handleSubmit}
+                    >
+                      {submitting ? "CREATING…" : "CREATE MISSION"}
+                    </BrutalButton>
+                  </div>
+
+                  <div className={submitting ? "opacity-60 pointer-events-none" : ""}>
+                    <BrutalButton type="button" variant="outline" onClick={onClose}>
+                      CANCEL
+                    </BrutalButton>
+                  </div>
                 </div>
               </div>
+              {/* end scrollable body */}
             </div>
           </div>
         </div>
