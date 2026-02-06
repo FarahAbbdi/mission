@@ -161,9 +161,20 @@ export default function MissionDetailHeader({
       {/* Description */}
       <div className="space-y-2">
         <SectionLabel>DESCRIPTION</SectionLabel>
-        <CardBox>
-          <p className="text-sm leading-relaxed">{description}</p>
-        </CardBox>
+
+        {description?.trim() ? (
+          <CardBox>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {description}
+            </p>
+          </CardBox>
+        ) : (
+          <div className="border-2 border-dashed border-gray-300 px-4 py-6 bg-white">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+              NO DESCRIPTION
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Watchers */}
