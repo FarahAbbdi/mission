@@ -1,4 +1,3 @@
-// components/auth/SignupStep.tsx
 import { TextInput } from "@/components/ui/TextInput";
 import { BrutalButton } from "@/components/ui/BrutalButton";
 

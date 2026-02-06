@@ -1,4 +1,3 @@
-// app/(auth)/page.tsx  (or wherever your AuthPage lives)
 "use client";
 
 import { useState } from "react";
@@ -56,30 +55,44 @@ export default function AuthPage() {
     setLoading(true);
     setError(null);
 
-    /**
-     * You said you added a "name column in auth".
-     * Supabase Auth DOES NOT support arbitrary columns on auth.users in normal usage.
-     * The safe / standard place to store name is:
-     *  - user_metadata (built-in)
-     *  - plus a profiles table (recommended)
-     *
-     * This implementation does BOTH:
-     * 1) stores name in user_metadata
-     * 2) upserts into profiles (if you have it)
-     */
+    // 1) Create auth user (+ store name in user_metadata for convenience)
     const { data, error: signUpErr } = await supabase.auth.signUp({
       email: trimmedEmail,
       password,
       options: {
-        data: {
-          name: trimmedName,
-        },
+        data: { name: trimmedName },
       },
     });
 
     if (signUpErr) {
       setLoading(false);
       setError(signUpErr.message);
+      return;
+    }
+
+    // 2) Insert/upsert into profiles
+    // Note: Depending on your Supabase email-confirm settings,
+    // data.user should still be present here (usually is).
+    const userId = data.user?.id;
+
+    if (!userId) {
+      setLoading(false);
+      setError("Signup succeeded, but no user returned. Check email confirmation settings.");
+      return;
+    }
+
+    const { error: profileErr } = await supabase.from("profiles").upsert(
+      {
+        id: userId,
+        name: trimmedName,
+      },
+      { onConflict: "id" }
+    );
+
+    if (profileErr) {
+      // Auth user exists, but profile insert failed. Surface it clearly.
+      setLoading(false);
+      setError(profileErr.message);
       return;
     }
 
@@ -92,7 +105,7 @@ export default function AuthPage() {
     setError(null);
     setPassword("");
     setConfirmPassword("");
-    setName(""); // ✅ reset name too
+    setName("");
   }
 
   return (
@@ -153,7 +166,6 @@ export default function AuthPage() {
         )}
 
         {error && <p className="text-red-600 text-sm text-center">{error}</p>}
-
         {loading && <p className="text-xs text-gray-500 text-center">Loading…</p>}
       </div>
     </main>
