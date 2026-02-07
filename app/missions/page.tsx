@@ -37,10 +37,8 @@ type MilestoneRowLite = {
 
 type MilestoneCountMap = Record<string, { total: number; completed: number }>;
 
-type WatchingJoinRow = {
-  mission_id: string;
-  mission: MissionRow | null;
-};
+type WatcherChipData = { initial: string; name: string };
+type WatcherCardMap = Record<string, WatcherChipData[]>;
 
 function EmptyPlaceholder({ label }: { label: string }) {
   return (
@@ -137,6 +135,12 @@ function todayISODate(): string {
   return `${y}-${m}-${day}`;
 }
 
+function formatName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return "";
+  return trimmed[0].toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 export default function MissionsPage() {
   const router = useRouter();
 
@@ -146,6 +150,9 @@ export default function MissionsPage() {
   const [missions, setMissions] = useState<MissionRow[]>([]);
   // WATCHING missions
   const [watchingMissions, setWatchingMissions] = useState<MissionRow[]>([]);
+
+  const [watcherChipsByMission, setWatcherChipsByMission] =
+  useState<WatcherCardMap>({});
 
   // milestone counts for both MY + WATCHING
   const [milestoneCounts, setMilestoneCounts] = useState<MilestoneCountMap>({});
@@ -269,6 +276,67 @@ export default function MissionsPage() {
       ...watchingJoinedMissions.map((m) => m.id),
     ];
     const uniqueIds = Array.from(new Set(allIds));
+
+    // 2.5) Fetch watchers for missions (MY + WATCHING) so MissionCard can show chips
+    const watchersForMissionsRes = await supabase
+      .from("watchers")
+      .select("mission_id, watcher_id")
+      .in("mission_id", uniqueIds);
+
+    if (watchersForMissionsRes.error) {
+      // if RLS blocks this, you’ll just see no chips
+      setWatcherChipsByMission({});
+    } else {
+      const rows = (watchersForMissionsRes.data ?? []) as {
+        mission_id: string;
+        watcher_id: string;
+      }[];
+
+      const watcherIds = Array.from(
+        new Set(rows.map((r) => r.watcher_id).filter(Boolean))
+      );
+
+      if (!watcherIds.length) {
+        setWatcherChipsByMission({});
+      } else {
+        const profilesRes = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", watcherIds);
+
+        if (profilesRes.error) {
+          setWatcherChipsByMission({});
+        } else {
+          const nameById = new Map<string, string>(
+            (profilesRes.data ?? []).map((p) => [p.id, p.name])
+          );
+
+          const map: WatcherCardMap = {};
+
+          for (const r of rows) {
+            const rawName =
+              nameById.get(r.watcher_id) ??
+              r.watcher_id.replace(/-/g, "").slice(0, 6).toUpperCase();
+
+            const name = formatName(rawName);
+            const chip: WatcherChipData = {
+              name,
+              initial: (name[0] ?? "U").toUpperCase(),
+            };
+
+            if (!map[r.mission_id]) map[r.mission_id] = [];
+            map[r.mission_id].push(chip);
+          }
+
+          // optional: limit chips per card
+          for (const k of Object.keys(map)) {
+            map[k] = map[k].slice(0, 5);
+          }
+
+          setWatcherChipsByMission(map);
+        }
+      }
+    }
 
     if (!uniqueIds.length) {
       setMilestoneCounts({});
@@ -413,7 +481,7 @@ export default function MissionsPage() {
                   status={toCardStatus(m.status)}
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
-                  watchers={[]}
+                  watchers={watcherChipsByMission[m.id] ?? []}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -433,7 +501,7 @@ export default function MissionsPage() {
                   status={toCardStatus(m.status)}
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
-                  watchers={[]}
+                  watchers={watcherChipsByMission[m.id] ?? []}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -453,7 +521,7 @@ export default function MissionsPage() {
                   status={toCardStatus(m.status)}
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
-                  watchers={[]}
+                  watchers={watcherChipsByMission[m.id] ?? []}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -478,7 +546,7 @@ export default function MissionsPage() {
                   status={toCardStatus(m.status)}
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
-                  watchers={[]}
+                  watchers={watcherChipsByMission[m.id] ?? []}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -498,7 +566,7 @@ export default function MissionsPage() {
                   status={toCardStatus(m.status)}
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
-                  watchers={[]}
+                  watchers={watcherChipsByMission[m.id] ?? []}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -521,7 +589,7 @@ export default function MissionsPage() {
                   status={toCardStatus(m.status)}
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
-                  watchers={[]}
+                  watchers={watcherChipsByMission[m.id] ?? []}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
