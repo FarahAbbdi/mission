@@ -53,14 +53,6 @@ function statusToLabel(
   return "ACTIVE";
 }
 
-function chipFromWatcherId(watcherId: string): WatcherChipData {
-  const short = (watcherId || "user")
-    .replace(/-/g, "")
-    .slice(0, 6)
-    .toUpperCase();
-  return { name: short, initial: short[0] ?? "U" };
-}
-
 export default function MissionDetailPage() {
   const router = useRouter();
   const params = useParams();

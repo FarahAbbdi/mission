@@ -32,8 +32,12 @@ export default function WatcherModal({
   // reset when opening
   useEffect(() => {
     if (!open) return;
-    setEmail("");
-    setError(null);
+
+    // defer to a microtask so setState doesn't run synchronously inside the effect
+    void Promise.resolve().then(() => {
+      setEmail("");
+      setError(null);
+    });
   }, [open]);
 
   // Escape closes
