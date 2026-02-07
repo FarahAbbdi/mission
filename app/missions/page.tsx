@@ -39,7 +39,6 @@ type MilestoneCountMap = Record<string, { total: number; completed: number }>;
 
 type WatchingJoinRow = {
   mission_id: string;
-  // IMPORTANT: this matches your working console output: { mission_id, mission: { ... } }
   mission: MissionRow | null;
 };
 
@@ -214,40 +213,49 @@ export default function MissionsPage() {
     const myMissionRows = (missionsRes.data ?? []) as MissionRow[];
     setMissions(myMissionRows);
 
-    // 2) Fetch WATCHING missions via watchers join
-    // IMPORTANT: alias is `mission` and FK is `mission_id` (matches your console output)
+    // Fetch WATCHING missions via watchers join
     const watchingRes = await supabase
       .from("watchers")
       .select(
         `
         mission_id,
-        mission:mission_id (
+        mission:missions (
           id, owner_id, name, description, start_date, end_date, status, created_at, updated_at
         )
-      `
+        `
       )
       .eq("watcher_id", user.id);
 
     let watchingJoinedMissions: MissionRow[] = [];
 
     if (watchingRes.error) {
-      // Don't hard fail page; just show empty watching
       setWatchingMissions([]);
     } else {
-      const raw = (watchingRes.data ?? []) as any[];
+      const raw = (watchingRes.data ?? []) as unknown[];
 
-      // Supabase returns mission as an array due to the join, so extract the first element
-      const joinedMissions = raw
-        .map((r) => {
-          const missionArr = r.mission;
-          return Array.isArray(missionArr) && missionArr.length > 0 ? missionArr[0] : null;
-        })
+      const normalized = raw.map((item) => {
+        const rec = item as Record<string, unknown>;
+        const missionField = rec["mission"];
+        let missionObj: MissionRow | null = null;
+
+        if (Array.isArray(missionField)) {
+          missionObj = (missionField[0] as MissionRow) ?? null;
+        } else if (missionField && typeof missionField === "object") {
+          missionObj = missionField as MissionRow;
+        }
+
+        return {
+          mission_id: String(rec["mission_id"] ?? ""),
+          mission: missionObj,
+        } as { mission_id: string; mission: MissionRow | null };
+      });
+
+      const joinedMissions = normalized
+        .map((r) => r.mission)
         .filter((m): m is MissionRow => Boolean(m));
 
-      // Optional: remove missions you own from WATCHING section
       const watchingOnly = joinedMissions.filter((m) => m.owner_id !== user.id);
 
-      // De-dupe by id (just in case)
       const uniq = new Map<string, MissionRow>();
       for (const m of watchingOnly) uniq.set(m.id, m);
 
