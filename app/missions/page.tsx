@@ -35,10 +35,13 @@ type MilestoneRowLite = {
   status: MilestoneStatus;
 };
 
-type MilestoneCountMap = Record<
-  string,
-  { total: number; completed: number }
->;
+type MilestoneCountMap = Record<string, { total: number; completed: number }>;
+
+type WatchingJoinRow = {
+  mission_id: string;
+  // IMPORTANT: this matches your working console output: { mission_id, mission: { ... } }
+  mission: MissionRow | null;
+};
 
 function EmptyPlaceholder({ label }: { label: string }) {
   return (
@@ -128,7 +131,6 @@ function FullPageLoading() {
 }
 
 function todayISODate(): string {
-  // YYYY-MM-DD (local)
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -140,8 +142,15 @@ export default function MissionsPage() {
   const router = useRouter();
 
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
+
+  // MY missions
   const [missions, setMissions] = useState<MissionRow[]>([]);
+  // WATCHING missions
+  const [watchingMissions, setWatchingMissions] = useState<MissionRow[]>([]);
+
+  // milestone counts for both MY + WATCHING
   const [milestoneCounts, setMilestoneCounts] = useState<MilestoneCountMap>({});
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -162,6 +171,7 @@ export default function MissionsPage() {
     if (userErr) {
       setError(userErr.message);
       setMissions([]);
+      setWatchingMissions([]);
       setMilestoneCounts({});
       setLoading(false);
       return;
@@ -169,12 +179,13 @@ export default function MissionsPage() {
 
     if (!user) {
       setMissions([]);
+      setWatchingMissions([]);
       setMilestoneCounts({});
       setLoading(false);
       return;
     }
 
-    // Auto-expire missions whose end_date already passed (only active ones)
+    // Auto-expire MY missions whose end_date already passed (only active ones)
     await supabase
       .from("missions")
       .update({ status: "expired" })
@@ -182,27 +193,76 @@ export default function MissionsPage() {
       .eq("status", "active")
       .lt("end_date", todayISODate());
 
-    // 1) Fetch missions
+    // 1) Fetch MY missions
     const missionsRes = await supabase
       .from("missions")
-      .select("id, owner_id, name, description, start_date, end_date, status, created_at, updated_at")
+      .select(
+        "id, owner_id, name, description, start_date, end_date, status, created_at, updated_at"
+      )
       .eq("owner_id", user.id)
       .order("created_at", { ascending: false });
 
     if (missionsRes.error) {
       setError(missionsRes.error.message);
       setMissions([]);
+      setWatchingMissions([]);
       setMilestoneCounts({});
       setLoading(false);
       return;
     }
 
-    const missionRows = (missionsRes.data ?? []) as MissionRow[];
-    setMissions(missionRows);
+    const myMissionRows = (missionsRes.data ?? []) as MissionRow[];
+    setMissions(myMissionRows);
 
-    // 2) Fetch milestone rows for those missions (lite)
-    const missionIds = missionRows.map((m) => m.id);
-    if (!missionIds.length) {
+    // 2) Fetch WATCHING missions via watchers join
+    // IMPORTANT: alias is `mission` and FK is `mission_id` (matches your console output)
+    const watchingRes = await supabase
+      .from("watchers")
+      .select(
+        `
+        mission_id,
+        mission:mission_id (
+          id, owner_id, name, description, start_date, end_date, status, created_at, updated_at
+        )
+      `
+      )
+      .eq("watcher_id", user.id);
+
+    let watchingJoinedMissions: MissionRow[] = [];
+
+    if (watchingRes.error) {
+      // Don't hard fail page; just show empty watching
+      setWatchingMissions([]);
+    } else {
+      const raw = (watchingRes.data ?? []) as any[];
+
+      // Supabase returns mission as an array due to the join, so extract the first element
+      const joinedMissions = raw
+        .map((r) => {
+          const missionArr = r.mission;
+          return Array.isArray(missionArr) && missionArr.length > 0 ? missionArr[0] : null;
+        })
+        .filter((m): m is MissionRow => Boolean(m));
+
+      // Optional: remove missions you own from WATCHING section
+      const watchingOnly = joinedMissions.filter((m) => m.owner_id !== user.id);
+
+      // De-dupe by id (just in case)
+      const uniq = new Map<string, MissionRow>();
+      for (const m of watchingOnly) uniq.set(m.id, m);
+
+      watchingJoinedMissions = Array.from(uniq.values());
+      setWatchingMissions(watchingJoinedMissions);
+    }
+
+    // 3) Fetch milestone counts for BOTH sets (MY + WATCHING)
+    const allIds = [
+      ...myMissionRows.map((m) => m.id),
+      ...watchingJoinedMissions.map((m) => m.id),
+    ];
+    const uniqueIds = Array.from(new Set(allIds));
+
+    if (!uniqueIds.length) {
       setMilestoneCounts({});
       setLoading(false);
       return;
@@ -211,10 +271,9 @@ export default function MissionsPage() {
     const milestonesRes = await supabase
       .from("milestones")
       .select("mission_id, status")
-      .in("mission_id", missionIds);
+      .in("mission_id", uniqueIds);
 
     if (milestonesRes.error) {
-      // don't hard fail the page — just show 0/0
       setMilestoneCounts({});
       setLoading(false);
       return;
@@ -222,7 +281,6 @@ export default function MissionsPage() {
 
     const milestoneRows = (milestonesRes.data ?? []) as MilestoneRowLite[];
 
-    // 3) Reduce -> counts map
     const counts: MilestoneCountMap = {};
     for (const row of milestoneRows) {
       if (!row?.mission_id) continue;
@@ -236,15 +294,39 @@ export default function MissionsPage() {
   }
 
   useEffect(() => {
-    // defer to a microtask so loadMissions (which calls setState) doesn't run synchronously
     void Promise.resolve().then(() => {
       void loadMissions();
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const active = useMemo(() => missions.filter((m) => m.status === "active"), [missions]);
-  const completed = useMemo(() => missions.filter((m) => m.status === "completed"), [missions]);
-  const expired = useMemo(() => missions.filter((m) => m.status === "expired"), [missions]);
+  // ======================= MY groupings =======================
+  const myActive = useMemo(
+    () => missions.filter((m) => m.status === "active"),
+    [missions]
+  );
+  const myCompleted = useMemo(
+    () => missions.filter((m) => m.status === "completed"),
+    [missions]
+  );
+  const myExpired = useMemo(
+    () => missions.filter((m) => m.status === "expired"),
+    [missions]
+  );
+
+  // ======================= WATCHING groupings =======================
+  const watchingActive = useMemo(
+    () => watchingMissions.filter((m) => m.status === "active"),
+    [watchingMissions]
+  );
+  const watchingCompleted = useMemo(
+    () => watchingMissions.filter((m) => m.status === "completed"),
+    [watchingMissions]
+  );
+  const watchingExpired = useMemo(
+    () => watchingMissions.filter((m) => m.status === "expired"),
+    [watchingMissions]
+  );
 
   async function handleCreateMission(payload: CreateMissionPayload) {
     setError(null);
@@ -272,7 +354,12 @@ export default function MissionsPage() {
       status: "active",
     };
 
-    const insertRes = await supabase.from("missions").insert(row).select("id").single();
+    const insertRes = await supabase
+      .from("missions")
+      .insert(row)
+      .select("id")
+      .single();
+
     if (insertRes.error) {
       setError(insertRes.error.message);
       return;
@@ -309,9 +396,9 @@ export default function MissionsPage() {
         <SectionHeader title="MY MISSIONS" />
 
         <SubSection title="ACTIVE">
-          {active.length ? (
+          {myActive.length ? (
             <MissionGrid>
-              {active.map((m) => (
+              {myActive.map((m) => (
                 <MissionCard
                   key={m.id}
                   title={m.name}
@@ -328,10 +415,10 @@ export default function MissionsPage() {
           )}
         </SubSection>
 
-        {completed.length ? (
+        {myCompleted.length ? (
           <SubSection title="COMPLETED">
             <MissionGrid>
-              {completed.map((m) => (
+              {myCompleted.map((m) => (
                 <MissionCard
                   key={m.id}
                   title={m.name}
@@ -348,10 +435,10 @@ export default function MissionsPage() {
           <EmptySubSection title="COMPLETED" label="NO COMPLETED MISSIONS" />
         )}
 
-        {expired.length ? (
+        {myExpired.length ? (
           <SubSection title="UNSATISFIED">
             <MissionGrid>
-              {expired.map((m) => (
+              {myExpired.map((m) => (
                 <MissionCard
                   key={m.id}
                   title={m.name}
@@ -372,9 +459,72 @@ export default function MissionsPage() {
       {/* ================= WATCHING ================= */}
       <section className="space-y-6">
         <SectionHeader title="WATCHING" />
-        <EmptySubSection title="ACTIVE" label="NO ACTIVE MISSIONS YOU'RE WATCHING" />
-        <EmptySubSection title="COMPLETED" label="NO COMPLETED MISSIONS YOU'RE WATCHING" />
-        <EmptySubSection title="UNSATISFIED" label="NO UNSATISFIED MISSIONS YOU'RE WATCHING" />
+
+        <SubSection title="ACTIVE">
+          {watchingActive.length ? (
+            <MissionGrid>
+              {watchingActive.map((m) => (
+                <MissionCard
+                  key={m.id}
+                  title={m.name}
+                  status={toCardStatus(m.status)}
+                  milestonesText={milestonesTextFor(m.id)}
+                  dateRangeText={formatDateRange(m.start_date, m.end_date)}
+                  watchers={[]}
+                  onClick={() => router.push(`/missions/${m.id}`)}
+                />
+              ))}
+            </MissionGrid>
+          ) : (
+            <EmptyPlaceholder label="NO ACTIVE MISSIONS YOU'RE WATCHING" />
+          )}
+        </SubSection>
+
+        {watchingCompleted.length ? (
+          <SubSection title="COMPLETED">
+            <MissionGrid>
+              {watchingCompleted.map((m) => (
+                <MissionCard
+                  key={m.id}
+                  title={m.name}
+                  status={toCardStatus(m.status)}
+                  milestonesText={milestonesTextFor(m.id)}
+                  dateRangeText={formatDateRange(m.start_date, m.end_date)}
+                  watchers={[]}
+                  onClick={() => router.push(`/missions/${m.id}`)}
+                />
+              ))}
+            </MissionGrid>
+          </SubSection>
+        ) : (
+          <EmptySubSection
+            title="COMPLETED"
+            label="NO COMPLETED MISSIONS YOU'RE WATCHING"
+          />
+        )}
+
+        {watchingExpired.length ? (
+          <SubSection title="UNSATISFIED">
+            <MissionGrid>
+              {watchingExpired.map((m) => (
+                <MissionCard
+                  key={m.id}
+                  title={m.name}
+                  status={toCardStatus(m.status)}
+                  milestonesText={milestonesTextFor(m.id)}
+                  dateRangeText={formatDateRange(m.start_date, m.end_date)}
+                  watchers={[]}
+                  onClick={() => router.push(`/missions/${m.id}`)}
+                />
+              ))}
+            </MissionGrid>
+          </SubSection>
+        ) : (
+          <EmptySubSection
+            title="UNSATISFIED"
+            label="NO UNSATISFIED MISSIONS YOU'RE WATCHING"
+          />
+        )}
       </section>
 
       <MissionModal
