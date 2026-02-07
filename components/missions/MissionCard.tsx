@@ -11,6 +11,7 @@ type Props = {
   milestonesText: string;
   dateRangeText: string;
   watchers?: WatcherChipData[];
+  watchersLoading?: boolean;
   onClick?: () => void;
 };
 
@@ -20,11 +21,7 @@ function StatusPill({ status }: { status: Props["status"] }) {
   const filled = status === "COMPLETED";
 
   return (
-    <div
-      className={`${base} ${
-        filled ? "bg-black text-white" : "bg-white text-black"
-      }`}
-    >
+    <div className={`${base} ${filled ? "bg-black text-white" : "bg-white text-black"}`}>
       {status}
     </div>
   );
@@ -44,12 +41,7 @@ function IconClock() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M12 7v6l4 2"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="square"
-      />
+      <path d="M12 7v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
     </svg>
   );
 }
@@ -57,22 +49,10 @@ function IconClock() {
 function IconUsers() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M16 19c0-2-2-3-4-3s-4 1-4 3"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
+      <path d="M16 19c0-2-2-3-4-3s-4 1-4 3" stroke="currentColor" strokeWidth="2" />
       <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M20 19c0-1.6-1-2.6-2.4-3"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M6.4 16c-1.4.4-2.4 1.4-2.4 3"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
+      <path d="M20 19c0-1.6-1-2.6-2.4-3" stroke="currentColor" strokeWidth="2" />
+      <path d="M6.4 16c-1.4.4-2.4 1.4-2.4 3" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -84,15 +64,20 @@ function formatName(name: string) {
 }
 
 function WatcherChip({ initial, name }: WatcherChipData) {
+  const label = formatName(name);
   return (
     <div
       className="h-7 w-7 border-2 border-black flex items-center justify-center text-xs font-bold"
-      title={formatName(name)}
-      aria-label={formatName(name)}
+      title={label}
+      aria-label={label}
     >
       {(initial ?? "U").toUpperCase()}
     </div>
   );
+}
+
+function WatcherChipSkeleton() {
+  return <div className="h-7 w-7 border-2 border-black animate-pulse" />;
 }
 
 export default function MissionCard({
@@ -101,6 +86,7 @@ export default function MissionCard({
   milestonesText,
   dateRangeText,
   watchers = [],
+  watchersLoading = false,
   onClick,
 }: Props) {
   return (
@@ -134,18 +120,20 @@ export default function MissionCard({
 
           <div className="flex items-center gap-3">
             <IconUsers />
+
             <div className="flex items-center gap-2">
-              {watchers.length ? (
-                watchers.slice(0, 5).map((w) => (
-                  <WatcherChip
-                    key={`${w.initial}-${w.name}`}
-                    initial={w.initial}
-                    name={w.name}
-                  />
+              {watchersLoading ? (
+                <>
+                  <WatcherChipSkeleton />
+                  <WatcherChipSkeleton />
+                </>
+              ) : watchers.length ? (
+                watchers.map((w) => (
+                  <WatcherChip key={`${w.name}-${w.initial}`} initial={w.initial} name={w.name} />
                 ))
               ) : (
-                <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                  No watchers yet
+                <span className="text-xs text-gray-400 uppercase tracking-widest">
+                  No watchers
                 </span>
               )}
             </div>

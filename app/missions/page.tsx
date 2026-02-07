@@ -154,6 +154,8 @@ export default function MissionsPage() {
   const [watcherChipsByMission, setWatcherChipsByMission] =
   useState<WatcherCardMap>({});
 
+  const [watchersLoading, setWatchersLoading] = useState(true);
+
   // milestone counts for both MY + WATCHING
   const [milestoneCounts, setMilestoneCounts] = useState<MilestoneCountMap>({});
 
@@ -167,6 +169,7 @@ export default function MissionsPage() {
 
   async function loadMissions() {
     setLoading(true);
+    setWatchersLoading(true);
     setError(null);
 
     const {
@@ -334,6 +337,7 @@ export default function MissionsPage() {
           }
 
           setWatcherChipsByMission(map);
+          setWatchersLoading(false);
         }
       }
     }
@@ -341,6 +345,7 @@ export default function MissionsPage() {
     if (!uniqueIds.length) {
       setMilestoneCounts({});
       setLoading(false);
+      setWatchersLoading(false);
       return;
     }
 
@@ -352,6 +357,7 @@ export default function MissionsPage() {
     if (milestonesRes.error) {
       setMilestoneCounts({});
       setLoading(false);
+      setWatchersLoading(false);
       return;
     }
 
@@ -367,6 +373,7 @@ export default function MissionsPage() {
 
     setMilestoneCounts(counts);
     setLoading(false);
+    setWatchersLoading(false);
   }
 
   useEffect(() => {
@@ -482,6 +489,7 @@ export default function MissionsPage() {
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
                   watchers={watcherChipsByMission[m.id] ?? []}
+                  watchersLoading={watchersLoading}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -502,6 +510,7 @@ export default function MissionsPage() {
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
                   watchers={watcherChipsByMission[m.id] ?? []}
+                  watchersLoading={watchersLoading}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -522,6 +531,7 @@ export default function MissionsPage() {
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
                   watchers={watcherChipsByMission[m.id] ?? []}
+                  watchersLoading={watchersLoading}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -547,6 +557,7 @@ export default function MissionsPage() {
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
                   watchers={watcherChipsByMission[m.id] ?? []}
+                  watchersLoading={watchersLoading}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -567,6 +578,7 @@ export default function MissionsPage() {
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
                   watchers={watcherChipsByMission[m.id] ?? []}
+                  watchersLoading={watchersLoading}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
@@ -590,6 +602,7 @@ export default function MissionsPage() {
                   milestonesText={milestonesTextFor(m.id)}
                   dateRangeText={formatDateRange(m.start_date, m.end_date)}
                   watchers={watcherChipsByMission[m.id] ?? []}
+                  watchersLoading={watchersLoading}
                   onClick={() => router.push(`/missions/${m.id}`)}
                 />
               ))}
