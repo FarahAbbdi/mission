@@ -24,10 +24,6 @@ type WatcherChipData = {
   name: string;
 };
 
-type WatcherRow = {
-  watcher_id: string;
-};
-
 function FullPageLoading() {
   return (
     <div className="fixed inset-0 z-50 bg-white/70">
@@ -58,7 +54,10 @@ function statusToLabel(
 }
 
 function chipFromWatcherId(watcherId: string): WatcherChipData {
-  const short = (watcherId || "user").replace(/-/g, "").slice(0, 6).toUpperCase();
+  const short = (watcherId || "user")
+    .replace(/-/g, "")
+    .slice(0, 6)
+    .toUpperCase();
   return { name: short, initial: short[0] ?? "U" };
 }
 
@@ -107,6 +106,7 @@ export default function MissionDetailPage() {
 
     setMission(missionRes.data as MissionRow);
 
+    // 1) Get watcher ids for this mission
     const watchersRes = await supabase
       .from("watchers")
       .select("watcher_id")
@@ -118,16 +118,56 @@ export default function MissionDetailPage() {
       return;
     }
 
-    const mapped: WatcherChipData[] = ((watchersRes.data ?? []) as WatcherRow[])
-      .filter((row) => !!row.watcher_id)
-      .map((row) => chipFromWatcherId(row.watcher_id));
+    const watcherIds = (watchersRes.data ?? []).map((w) => w.watcher_id).filter(Boolean);
+
+    // 2) Fetch names from profiles
+    if (!watcherIds.length) {
+      setWatchers([]);
+      setLoading(false);
+      return;
+    }
+
+    const profilesRes = await supabase
+      .from("profiles")
+      .select("id, name")
+      .in("id", watcherIds);
+
+    if (profilesRes.error) {
+      setWatchers([]);
+      setLoading(false);
+      return;
+    }
+
+    // 3) Map watcher_id -> name
+    const nameById = new Map<string, string>(
+      (profilesRes.data ?? []).map((p) => [p.id, p.name])
+    );
+
+    // 4) Build chips using name (fallback to ID fragment if name missing)
+    const mapped: WatcherChipData[] = watcherIds.map((id) => {
+      const rawName =
+        nameById.get(id) ??
+        id.replace(/-/g, "").slice(0, 6).toUpperCase();
+      const name = formatName(rawName);
+
+      return {
+        name,
+        initial: name[0] ?? "U",
+      };
+    });
 
     setWatchers(mapped);
     setLoading(false);
   }
 
+  function formatName(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return "";
+    return trimmed[0].toUpperCase() + trimmed.slice(1).toLowerCase();
+  }
+
   useEffect(() => {
-    loadMissionAndWatchers();
+    void loadMissionAndWatchers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
 
@@ -170,8 +210,14 @@ export default function MissionDetailPage() {
     router.push("/missions");
   }
 
-  async function handleAddWatcherByEmail(email: string) {
+  async function handleAddWatcherByEmail(rawEmail: string) {
     if (!missionId) return;
+
+    const lookupEmail = rawEmail.trim().toLowerCase();
+    if (!lookupEmail) {
+      setError("Email is required.");
+      return;
+    }
 
     setAddingWatcher(true);
     setError(null);
@@ -185,13 +231,20 @@ export default function MissionDetailPage() {
       if (userErr) throw new Error(userErr.message);
       if (!user) throw new Error("You must be logged in.");
 
+      // NOTE: your profiles schema is: (id, name, email, created_at, updated_at)
+      // Use eq + maybeSingle (single() fails for 0 rows AND >1 rows)
       const profRes = await supabase
         .from("profiles")
-        .select("id, full_name, email")
-        .ilike("email", email)
-        .single();
+        .select("id, name, email")
+        .eq("email", lookupEmail)
+        .maybeSingle();
 
-      if (profRes.error || !profRes.data) {
+      if (profRes.error) {
+        // If RLS blocks SELECT, you’ll land here with a real error message.
+        throw new Error(profRes.error.message);
+      }
+
+      if (!profRes.data) {
         throw new Error("No user found with that email.");
       }
 
@@ -215,6 +268,8 @@ export default function MissionDetailPage() {
 
       await loadMissionAndWatchers();
       setIsWatcherModalOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setAddingWatcher(false);
     }
@@ -241,20 +296,16 @@ export default function MissionDetailPage() {
     <main className="min-h-screen flex flex-col">
       {loading && <FullPageLoading />}
 
-      {/* keep your desktop padding; just add responsive fallback */}
       <div className="px-4 sm:px-8 lg:px-12">
         <MissionDetailTopBar />
       </div>
 
       <section className="relative flex-1">
-        {/* Desktop-only background split + divider (prevents mobile weird gaps) */}
         <div className="hidden lg:block absolute inset-y-0 left-[38%] right-0 bg-gray-50 z-0" />
         <div className="hidden lg:block absolute inset-y-0 left-[38%] w-[4px] bg-black z-10" />
 
         <div className="relative z-20 h-full px-4 sm:px-8 lg:px-12">
-          {/* stack on mobile, side-by-side on desktop */}
           <div className="flex flex-col lg:flex-row h-full">
-            {/* LEFT */}
             <div className="w-full lg:w-[38%] lg:pr-10 pt-10 pb-10 lg:pb-16 space-y-6">
               {mission && (
                 <MissionDetailHeader
@@ -266,7 +317,6 @@ export default function MissionDetailPage() {
                   watchers={watchers}
                   onMarkSatisfied={handleMarkSatisfied}
                   onDeleteMission={handleDeleteMission}
-                  // add this prop in MissionDetailHeader and render a button that calls it
                   onAddWatcher={() => setIsWatcherModalOpen(true)}
                 />
               )}
@@ -278,7 +328,6 @@ export default function MissionDetailPage() {
               )}
             </div>
 
-            {/* RIGHT */}
             <div className="w-full lg:flex-1 lg:pl-10 pt-0 lg:pt-10 pb-16">
               {missionId && mission && (
                 <MilestonesSection
@@ -291,7 +340,6 @@ export default function MissionDetailPage() {
         </div>
       </section>
 
-      {/* WATCHER MODAL */}
       <WatcherModal
         open={isWatcherModalOpen}
         onClose={() => {
