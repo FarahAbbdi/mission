@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -8,6 +8,7 @@ import MissionDetailTopBar from "@/components/missions/MissionDetailTopBar";
 import MissionDetailHeader from "@/components/missions/MissionDetailHeader";
 import MilestonesSection from "@/components/missions/MilestonesSection";
 import WatcherModal from "@/components/missions/WatcherModal";
+import StopWatchingButton from "@/components/ui/StopWatchingButton";
 
 type MissionRow = {
   id: string;
@@ -53,6 +54,12 @@ function statusToLabel(
   return "ACTIVE";
 }
 
+function formatName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return "";
+  return trimmed[0].toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 export default function MissionDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -62,15 +69,24 @@ export default function MissionDetailPage() {
   const [watchers, setWatchers] = useState<WatcherChipData[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+  const isOwner = useMemo(
+    () => Boolean(viewerUserId && mission?.owner_id && viewerUserId === mission.owner_id),
+    [viewerUserId, mission?.owner_id]
+  );
+  const [isWatching, setIsWatching] = useState(false);
+
   const [deleting, setDeleting] = useState(false);
   const [markingSatisfied, setMarkingSatisfied] = useState(false);
 
   const [isWatcherModalOpen, setIsWatcherModalOpen] = useState(false);
   const [addingWatcher, setAddingWatcher] = useState(false);
 
+  const [stoppingWatching, setStoppingWatching] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
 
-  async function loadMissionAndWatchers() {
+  async function loadMissionAndMode() {
     if (!missionId) {
       setError("Mission not found.");
       setMission(null);
@@ -82,6 +98,31 @@ export default function MissionDetailPage() {
     setLoading(true);
     setError(null);
 
+    // Who is viewing?
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
+
+    if (userErr) {
+      setError(userErr.message);
+      setMission(null);
+      setWatchers([]);
+      setLoading(false);
+      return;
+    }
+
+    if (!user) {
+      setError("You must be logged in.");
+      setMission(null);
+      setWatchers([]);
+      setLoading(false);
+      return;
+    }
+
+    setViewerUserId(user.id);
+
+    // Load mission
     const missionRes = await supabase
       .from("missions")
       .select("id, owner_id, name, description, start_date, end_date, status")
@@ -96,9 +137,28 @@ export default function MissionDetailPage() {
       return;
     }
 
-    setMission(missionRes.data as MissionRow);
+    const m = missionRes.data as MissionRow;
+    setMission(m);
 
-    // 1) Get watcher ids for this mission
+    const ownerView = user.id === m.owner_id;
+
+    // Determine if viewer is watching (only matters if not owner)
+    if (!ownerView) {
+      const watchingRes = await supabase
+        .from("watchers")
+        .select("mission_id")
+        .eq("mission_id", missionId)
+        .eq("watcher_id", user.id)
+        .maybeSingle();
+
+      setIsWatching(Boolean(watchingRes.data) && !watchingRes.error);
+      // watcher-view: we REMOVE watcher section, so don't fetch watcher chips
+      setWatchers([]);
+      setLoading(false);
+      return;
+    }
+
+    // owner-view: load watcher chips
     const watchersRes = await supabase
       .from("watchers")
       .select("watcher_id")
@@ -106,15 +166,18 @@ export default function MissionDetailPage() {
 
     if (watchersRes.error) {
       setWatchers([]);
+      setIsWatching(false);
       setLoading(false);
       return;
     }
 
-    const watcherIds = (watchersRes.data ?? []).map((w) => w.watcher_id).filter(Boolean);
+    const watcherIds = (watchersRes.data ?? [])
+      .map((w) => w.watcher_id)
+      .filter(Boolean);
 
-    // 2) Fetch names from profiles
     if (!watcherIds.length) {
       setWatchers([]);
+      setIsWatching(false);
       setLoading(false);
       return;
     }
@@ -126,40 +189,33 @@ export default function MissionDetailPage() {
 
     if (profilesRes.error) {
       setWatchers([]);
+      setIsWatching(false);
       setLoading(false);
       return;
     }
 
-    // 3) Map watcher_id -> name
     const nameById = new Map<string, string>(
       (profilesRes.data ?? []).map((p) => [p.id, p.name])
     );
 
-    // 4) Build chips using name (fallback to ID fragment if name missing)
     const mapped: WatcherChipData[] = watcherIds.map((id) => {
       const rawName =
-        nameById.get(id) ??
-        id.replace(/-/g, "").slice(0, 6).toUpperCase();
+        nameById.get(id) ?? id.replace(/-/g, "").slice(0, 6).toUpperCase();
       const name = formatName(rawName);
 
       return {
         name,
-        initial: name[0] ?? "U",
+        initial: (name[0] ?? "U").toUpperCase(),
       };
     });
 
     setWatchers(mapped);
+    setIsWatching(false);
     setLoading(false);
   }
 
-  function formatName(name: string) {
-    const trimmed = name.trim();
-    if (!trimmed) return "";
-    return trimmed[0].toUpperCase() + trimmed.slice(1).toLowerCase();
-  }
-
   useEffect(() => {
-    void loadMissionAndWatchers();
+    void loadMissionAndMode();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
 
@@ -202,6 +258,43 @@ export default function MissionDetailPage() {
     router.push("/missions");
   }
 
+  async function handleStopWatching() {
+    if (!missionId) return;
+
+    setStoppingWatching(true);
+    setError(null);
+
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
+
+    if (userErr) {
+      setError(userErr.message);
+      setStoppingWatching(false);
+      return;
+    }
+    if (!user) {
+      setError("You must be logged in.");
+      setStoppingWatching(false);
+      return;
+    }
+
+    const del = await supabase
+      .from("watchers")
+      .delete()
+      .eq("mission_id", missionId)
+      .eq("watcher_id", user.id);
+
+    if (del.error) {
+      setError(del.error.message);
+      setStoppingWatching(false);
+      return;
+    }
+
+    router.push("/missions");
+  }
+
   async function handleAddWatcherByEmail(rawEmail: string) {
     if (!missionId) return;
 
@@ -223,28 +316,17 @@ export default function MissionDetailPage() {
       if (userErr) throw new Error(userErr.message);
       if (!user) throw new Error("You must be logged in.");
 
-      // NOTE: your profiles schema is: (id, name, email, created_at, updated_at)
-      // Use eq + maybeSingle (single() fails for 0 rows AND >1 rows)
       const profRes = await supabase
         .from("profiles")
         .select("id, name, email")
         .eq("email", lookupEmail)
         .maybeSingle();
 
-      if (profRes.error) {
-        // If RLS blocks SELECT, you’ll land here with a real error message.
-        throw new Error(profRes.error.message);
-      }
-
-      if (!profRes.data) {
-        throw new Error("No user found with that email.");
-      }
+      if (profRes.error) throw new Error(profRes.error.message);
+      if (!profRes.data) throw new Error("No user found with that email.");
 
       const watcherId = profRes.data.id;
-
-      if (watcherId === user.id) {
-        throw new Error("You can’t add yourself as a watcher.");
-      }
+      if (watcherId === user.id) throw new Error("You can’t add yourself as a watcher.");
 
       const ins = await supabase.from("watchers").insert({
         mission_id: missionId,
@@ -258,7 +340,7 @@ export default function MissionDetailPage() {
         throw new Error(ins.error.message);
       }
 
-      await loadMissionAndWatchers();
+      await loadMissionAndMode();
       setIsWatcherModalOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -298,19 +380,91 @@ export default function MissionDetailPage() {
 
         <div className="relative z-20 h-full px-4 sm:px-8 lg:px-12">
           <div className="flex flex-col lg:flex-row h-full">
+            {/* LEFT */}
             <div className="w-full lg:w-[38%] lg:pr-10 pt-10 pb-10 lg:pb-16 space-y-6">
               {mission && (
-                <MissionDetailHeader
-                  title={mission.name}
-                  statusLabel={statusToLabel(mission.status)}
-                  startDateText={formatDate(mission.start_date)}
-                  endDateText={formatDate(mission.end_date)}
-                  description={mission.description ?? ""}
-                  watchers={watchers}
-                  onMarkSatisfied={handleMarkSatisfied}
-                  onDeleteMission={handleDeleteMission}
-                  onAddWatcher={() => setIsWatcherModalOpen(true)}
-                />
+                <>
+                  {isOwner ? (
+                    <MissionDetailHeader
+                      title={mission.name}
+                      statusLabel={statusToLabel(mission.status)}
+                      startDateText={formatDate(mission.start_date)}
+                      endDateText={formatDate(mission.end_date)}
+                      description={mission.description ?? ""}
+                      watchers={watchers}
+                      onMarkSatisfied={handleMarkSatisfied}
+                      onDeleteMission={handleDeleteMission}
+                      onAddWatcher={() => setIsWatcherModalOpen(true)}
+                    />
+                  ) : (
+                    // WATCHER VIEW: no add watcher, no delete, no mark satisfied, no watcher section
+                    <div className="space-y-7">
+                      {/* Status + Title */}
+                      <div className="space-y-5">
+                        <div className="inline-flex items-center border-2 border-black px-3 py-1 text-[10px] font-black uppercase tracking-widest">
+                          {statusToLabel(mission.status)}
+                         </div>
+                           <h1 className="text-4xl font-black tracking-tight leading-[1.05]">
+                           {mission.name}
+                           </h1>
+                        </div>
+
+                        {/* Dates */}
+                        <div className="space-y-2">
+                            <div className="border-2 border-black bg-white">
+                            <div className="px-4 py-2.5">
+                                <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                                Start date
+                                </div>
+                                <div className="mt-0.5 text-lg font-semibold leading-tight">
+                                {formatDate(mission.start_date)}
+                                </div>
+                            </div>
+
+                            <div className="border-t-2 border-black" />
+
+                            <div className="px-4 py-2.5">
+                                <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                                End date
+                                </div>
+                                <div className="mt-0.5 text-lg font-semibold leading-tight">
+                                {formatDate(mission.end_date)}
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="space-y-2">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+                            DESCRIPTION
+                            </div>
+
+                            {mission.description?.trim() ? (
+                            <div className="border-2 border-black bg-gray-50 px-4 py-3">
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                {mission.description}
+                                </p>
+                            </div>
+                            ) : (
+                            <div className="border-2 border-dashed border-gray-300 px-4 py-6 bg-white">
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+                                NO DESCRIPTION
+                                </p>
+                            </div>
+                            )}
+                        </div>
+
+                        {/* Actions (watcher-only) */}
+                        {isWatching && (
+                           <StopWatchingButton
+                              disabled={stoppingWatching}
+                              onClick={handleStopWatching}
+                           />
+                      )}
+                    </div>
+                  )}
+                </>
               )}
 
               {(markingSatisfied || deleting) && (
@@ -318,13 +472,23 @@ export default function MissionDetailPage() {
                   {markingSatisfied ? "Marking satisfied…" : "Deleting…"}
                 </div>
               )}
+
+              {error && (
+                <div className="text-xs font-semibold uppercase tracking-widest text-red-600">
+                  {error}
+                </div>
+              )}
             </div>
 
+            {/* RIGHT */}
             <div className="w-full lg:flex-1 lg:pl-10 pt-0 lg:pt-10 pb-16">
               {missionId && mission && (
+                // If you want MilestonesSection to be truly read-only for watchers,
+                // add a prop in that component (e.g. `readOnly`) and use it to hide "Add Milestone".
                 <MilestonesSection
                   missionId={missionId}
                   missionStatus={mission.status}
+                  readOnly={!isOwner}
                 />
               )}
             </div>
@@ -332,15 +496,18 @@ export default function MissionDetailPage() {
         </div>
       </section>
 
-      <WatcherModal
-        open={isWatcherModalOpen}
-        onClose={() => {
-          if (addingWatcher) return;
-          setIsWatcherModalOpen(false);
-        }}
-        loading={addingWatcher}
-        onCreate={async ({ email }) => handleAddWatcherByEmail(email)}
-      />
+      {/* Only owners can add watchers */}
+      {isOwner && (
+        <WatcherModal
+          open={isWatcherModalOpen}
+          onClose={() => {
+            if (addingWatcher) return;
+            setIsWatcherModalOpen(false);
+          }}
+          loading={addingWatcher}
+          onCreate={async ({ email }) => handleAddWatcherByEmail(email)}
+        />
+      )}
     </main>
   );
 }

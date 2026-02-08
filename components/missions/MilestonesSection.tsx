@@ -13,6 +13,7 @@ import LogModal, { CreateLogPayload } from "@/components/missions/LogModal";
 type Props = {
   missionId: string;
   missionStatus?: "active" | "completed" | "expired"; // pass from mission detail page
+  readOnly?: boolean;
 };
 
 type MilestoneStatus = "active" | "completed";
