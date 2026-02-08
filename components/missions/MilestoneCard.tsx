@@ -225,15 +225,19 @@ export default function MilestoneCard({
         )}
 
         {/* DELETE (always visible) */}
-        <div className="border-t-2 border-black" />
-        <div className="px-5 py-4">
-          <BrutalButton variant="outline" onClick={onDelete}>
-            <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest">
-              <TrashIcon />
-              DELETE MILESTONE
-            </span>
-          </BrutalButton>
-        </div>
+        {onDelete && (
+          <>
+            <div className="border-t-2 border-black" />
+              <div className="px-5 py-4">
+                <BrutalButton variant="outline" onClick={onDelete}>
+                    <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest">
+                    <TrashIcon />
+                    DELETE MILESTONE
+                    </span>
+                </BrutalButton>
+                </div>
+            </>     
+         )}
       </div>
     </div>
   );

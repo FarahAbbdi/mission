@@ -13,7 +13,7 @@ import LogModal, { CreateLogPayload } from "@/components/missions/LogModal";
 type Props = {
   missionId: string;
   missionStatus?: "active" | "completed" | "expired"; // pass from mission detail page
-  readOnly?: boolean;
+  readOnly?: boolean; // ✅ when true: watcher view (no actions)
 };
 
 type MilestoneStatus = "active" | "completed";
@@ -76,7 +76,9 @@ function priorityToCard(p: MilestonePriority): "LOW" | "MEDIUM" | "HIGH" {
   return "MEDIUM";
 }
 
-function statusToCard(s: MilestoneStatus | "unsatisfied"): "ACTIVE" | "COMPLETED" | "UNSATISFIED" {
+function statusToCard(
+  s: MilestoneStatus | "unsatisfied"
+): "ACTIVE" | "COMPLETED" | "UNSATISFIED" {
   if (s === "completed") return "COMPLETED";
   if (s === "unsatisfied") return "UNSATISFIED";
   return "ACTIVE";
@@ -85,9 +87,13 @@ function statusToCard(s: MilestoneStatus | "unsatisfied"): "ACTIVE" | "COMPLETED
 export default function MilestonesSection({
   missionId,
   missionStatus = "active",
+  readOnly = false,
 }: Props) {
   const isMissionLocked =
     missionStatus === "completed" || missionStatus === "expired";
+
+  // ✅ true if user should NOT be able to do actions
+  const actionsDisabled = readOnly || isMissionLocked;
 
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
 
@@ -164,21 +170,16 @@ export default function MilestonesSection({
   }
 
   useEffect(() => {
-    loadMilestonesAndLogs();
+    void loadMilestonesAndLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missionId]);
 
-  // UNSATISFIED logic
   const today = todayLocalISO();
 
   const unsatisfiedRows = useMemo(() => {
     return rows.filter((r) => {
       if (r.status !== "active") return false;
-
-      // If mission is completed/expired, any active milestone is unsatisfied
       if (isMissionLocked) return true;
-
-      // Otherwise: active milestone past deadline is unsatisfied
       return r.deadline < today;
     });
   }, [rows, isMissionLocked, today]);
@@ -186,11 +187,7 @@ export default function MilestonesSection({
   const activeRows = useMemo(() => {
     return rows.filter((r) => {
       if (r.status !== "active") return false;
-
-      // active mission only
       if (isMissionLocked) return false;
-
-      // exclude unsatisfied
       return !(r.deadline < today);
     });
   }, [rows, isMissionLocked, today]);
@@ -201,7 +198,7 @@ export default function MilestonesSection({
   );
 
   async function handleCreateMilestone(payload: CreateMilestonePayload) {
-    if (isMissionLocked) return;
+    if (actionsDisabled) return;
 
     setCreating(true);
     setError(null);
@@ -239,7 +236,7 @@ export default function MilestonesSection({
   }
 
   async function handleToggleMilestoneStatus(id: string, current: MilestoneStatus) {
-    if (isMissionLocked) return;
+    if (actionsDisabled) return;
 
     const next: MilestoneStatus = current === "active" ? "completed" : "active";
 
@@ -268,6 +265,8 @@ export default function MilestonesSection({
   }
 
   async function handleDeleteMilestone(id: string) {
+    if (actionsDisabled) return;
+
     setError(null);
     setDeletingId(id);
 
@@ -300,6 +299,7 @@ export default function MilestonesSection({
 
   // LOG MODAL helpers
   function openLogModal(milestoneId: string) {
+    if (actionsDisabled) return; // ✅ watchers can't add logs
     setLogMilestoneId(milestoneId);
     setIsLogModalOpen(true);
   }
@@ -312,6 +312,7 @@ export default function MilestonesSection({
 
   async function handleCreateLog(payload: CreateLogPayload) {
     if (!logMilestoneId) return;
+    if (actionsDisabled) return;
 
     setSavingLog(true);
     setError(null);
@@ -349,9 +350,11 @@ export default function MilestonesSection({
       <div className="flex items-start justify-between gap-6">
         <div className="space-y-1">
           <h2 className="text-3xl font-black tracking-tight">MILESTONES</h2>
+
           <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
             {activeRows.length} active • {completedRows.length} completed •{" "}
             {unsatisfiedRows.length} unsatisfied
+            {readOnly ? " • view only" : ""}
           </div>
 
           {error && (
@@ -367,8 +370,8 @@ export default function MilestonesSection({
           )}
         </div>
 
-        {/* Hide ADD MILESTONE button when mission is completed/expired */}
-        {!isMissionLocked && (
+        {/* ✅ Only owners can add milestones (and only when active) */}
+        {!actionsDisabled && (
           <div className="w-[200px]">
             <BrutalButton
               variant="outline"
@@ -393,6 +396,7 @@ export default function MilestonesSection({
           <div className="space-y-6">
             {activeRows.map((m) => {
               const logs = logsByMilestone[m.id] ?? [];
+
               return (
                 <MilestoneCard
                   key={m.id}
@@ -403,11 +407,15 @@ export default function MilestonesSection({
                   priority={priorityToCard(m.priority)}
                   logs={logs}
                   logsCount={logs.length}
-                  checked={false}
-                  isLocked={isMissionLocked}
-                  onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
-                  onAddLog={() => openLogModal(m.id)}
-                  onDelete={() => handleDeleteMilestone(m.id)}
+                  checked={m.status === "completed"}
+                  isLocked={actionsDisabled} // ✅ hides checkbox UI if your card respects isLocked
+                  onToggleChecked={
+                    actionsDisabled
+                      ? undefined
+                      : () => handleToggleMilestoneStatus(m.id, m.status)
+                  }
+                  onAddLog={actionsDisabled ? undefined : () => openLogModal(m.id)}
+                  onDelete={actionsDisabled ? undefined : () => handleDeleteMilestone(m.id)}
                 />
               );
             })}
@@ -427,6 +435,7 @@ export default function MilestonesSection({
           <div className="space-y-6">
             {completedRows.map((m) => {
               const logs = logsByMilestone[m.id] ?? [];
+
               return (
                 <MilestoneCard
                   key={m.id}
@@ -438,10 +447,14 @@ export default function MilestonesSection({
                   logs={logs}
                   logsCount={logs.length}
                   checked={true}
-                  isLocked={isMissionLocked}
-                  onToggleChecked={() => handleToggleMilestoneStatus(m.id, m.status)}
-                  onAddLog={() => openLogModal(m.id)}
-                  onDelete={() => handleDeleteMilestone(m.id)}
+                  isLocked={actionsDisabled}
+                  onToggleChecked={
+                    actionsDisabled
+                      ? undefined
+                      : () => handleToggleMilestoneStatus(m.id, m.status)
+                  }
+                  onAddLog={actionsDisabled ? undefined : () => openLogModal(m.id)}
+                  onDelete={actionsDisabled ? undefined : () => handleDeleteMilestone(m.id)}
                 />
               );
             })}
@@ -461,6 +474,7 @@ export default function MilestonesSection({
           <div className="space-y-6">
             {unsatisfiedRows.map((m) => {
               const logs = logsByMilestone[m.id] ?? [];
+
               return (
                 <MilestoneCard
                   key={m.id}
@@ -472,8 +486,10 @@ export default function MilestonesSection({
                   logs={logs}
                   logsCount={logs.length}
                   checked={false}
-                  isLocked={true}
-                  onDelete={() => handleDeleteMilestone(m.id)}
+                  isLocked={true} // unsatisfied always locked
+                  onAddLog={undefined}
+                  onToggleChecked={undefined}
+                  onDelete={actionsDisabled ? undefined : () => handleDeleteMilestone(m.id)}
                 />
               );
             })}
@@ -483,24 +499,23 @@ export default function MilestonesSection({
         )}
       </div>
 
-      {/* MILESTONE MODAL */}
-      <MilestoneModal
-        open={isMilestoneModalOpen}
-        onClose={() => setIsMilestoneModalOpen(false)}
-        onCreate={handleCreateMilestone}
-      />
+      {/* ✅ Only owners can open modals */}
+      {!actionsDisabled && (
+        <>
+          <MilestoneModal
+            open={isMilestoneModalOpen}
+            onClose={() => setIsMilestoneModalOpen(false)}
+            onCreate={handleCreateMilestone}
+          />
 
-      {/* LOG MODAL */}
-      <LogModal
-        open={isLogModalOpen}
-        onClose={closeLogModal}
-        onCreate={handleCreateLog}
-      />
+          <LogModal open={isLogModalOpen} onClose={closeLogModal} onCreate={handleCreateLog} />
 
-      {creating && (
-        <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
-          Creating…
-        </div>
+          {creating && (
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+              Creating…
+            </div>
+          )}
+        </>
       )}
     </section>
   );
