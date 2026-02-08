@@ -89,7 +89,14 @@ function SectionHeader({ title }: { title: string }) {
 
 function MissionGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+    <div
+      className="
+        grid
+        gap-6
+        justify-start
+        [grid-template-columns:repeat(auto-fill,minmax(420px,420px))]
+      "
+    >
       {children}
     </div>
   );
@@ -380,7 +387,7 @@ export default function MissionsPage() {
     void Promise.resolve().then(() => {
       void loadMissions();
     });
-     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ======================= MY groupings =======================
