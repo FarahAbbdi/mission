@@ -387,7 +387,7 @@ export default function MissionsPage() {
     void Promise.resolve().then(() => {
       void loadMissions();
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // ======================= MY groupings =======================
