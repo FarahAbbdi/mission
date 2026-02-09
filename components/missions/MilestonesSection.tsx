@@ -13,7 +13,7 @@ import LogModal, { CreateLogPayload } from "@/components/missions/LogModal";
 type Props = {
   missionId: string;
   missionStatus?: "active" | "completed" | "expired"; // pass from mission detail page
-  readOnly?: boolean; // ✅ when true: watcher view (no actions)
+  readOnly?: boolean; // when true: watcher view (no actions)
 };
 
 type MilestoneStatus = "active" | "completed";
@@ -92,7 +92,7 @@ export default function MilestonesSection({
   const isMissionLocked =
     missionStatus === "completed" || missionStatus === "expired";
 
-  // ✅ true if user should NOT be able to do actions
+  // true if user should NOT be able to do actions
   const actionsDisabled = readOnly || isMissionLocked;
 
   const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
@@ -299,7 +299,7 @@ export default function MilestonesSection({
 
   // LOG MODAL helpers
   function openLogModal(milestoneId: string) {
-    if (actionsDisabled) return; // ✅ watchers can't add logs
+    if (actionsDisabled) return; // watchers can't add logs
     setLogMilestoneId(milestoneId);
     setIsLogModalOpen(true);
   }
@@ -370,7 +370,7 @@ export default function MilestonesSection({
           )}
         </div>
 
-        {/* ✅ Only owners can add milestones (and only when active) */}
+        {/* Only owners can add milestones (and only when active) */}
         {!actionsDisabled && (
           <div className="w-[200px]">
             <BrutalButton
@@ -408,7 +408,7 @@ export default function MilestonesSection({
                   logs={logs}
                   logsCount={logs.length}
                   checked={m.status === "completed"}
-                  isLocked={actionsDisabled} // ✅ hides checkbox UI if your card respects isLocked
+                  isLocked={actionsDisabled} // hides checkbox UI if your card respects isLocked
                   onToggleChecked={
                     actionsDisabled
                       ? undefined
@@ -499,7 +499,7 @@ export default function MilestonesSection({
         )}
       </div>
 
-      {/* ✅ Only owners can open modals */}
+      {/* Only owners can open modals */}
       {!actionsDisabled && (
         <>
           <MilestoneModal

@@ -107,7 +107,7 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
 
           {/* shell */}
           <div className="relative z-10 border-4 border-black bg-white overflow-hidden">
-            {/* ✅ Constrain height + enable internal scrolling */}
+            {/* Constrain height + enable internal scrolling */}
             <div className="max-h-[85vh] flex flex-col">
               {/* Header (fixed) */}
               <div className="flex items-center justify-between px-8 py-6">
@@ -127,7 +127,7 @@ export default function MissionModal({ open, onClose, onCreate }: Props) {
 
               <div className="border-b-4 border-black" />
 
-              {/* ✅ Body (scrollable) */}
+              {/* Body (scrollable) */}
               <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
                 <TextInput
                   label="Mission Name *"

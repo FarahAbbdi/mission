@@ -2,6 +2,11 @@
 
 import { BrutalButton } from "@/components/ui/BrutalButton";
 
+type OwnerBadge = {
+  initial: string;
+  name: string;
+};
+
 type Props = {
   statusLabel?: string; // "ACTIVE" | "COMPLETED" | "UNSATISFIED"
   title: string;
@@ -11,6 +16,10 @@ type Props = {
   description?: string;
 
   watchers?: { initial: string; name: string }[];
+
+  // NEW: show "WATCHING" banner (for watcher view)
+  watchingLabel?: boolean;
+  watchingOwner?: OwnerBadge;
 
   onAddWatcher?: () => void;
   onMarkSatisfied?: () => void;
