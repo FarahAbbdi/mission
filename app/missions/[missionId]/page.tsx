@@ -84,6 +84,10 @@ export default function MissionDetailPage() {
 
   const [stoppingWatching, setStoppingWatching] = useState(false);
 
+  type OwnerInfo = { initial: string; name: string };
+  const [ownerInfo, setOwnerInfo] = useState<OwnerInfo | null>(null);
+
+
   const [error, setError] = useState<string | null>(null);
 
   async function loadMissionAndMode() {
@@ -139,6 +143,7 @@ export default function MissionDetailPage() {
 
     const m = missionRes.data as MissionRow;
     setMission(m);
+    setOwnerInfo(null);
 
     const ownerView = user.id === m.owner_id;
 
@@ -152,6 +157,25 @@ export default function MissionDetailPage() {
         .maybeSingle();
 
       setIsWatching(Boolean(watchingRes.data) && !watchingRes.error);
+
+      // fetch owner info so we can show "WATCHING Alice's MISSION"
+      const ownerRes = await supabase
+        .from("profiles")
+        .select("id, name")
+        .eq("id", m.owner_id)
+        .maybeSingle();
+
+      const rawName =
+        ownerRes.data?.name ??
+        m.owner_id.replace(/-/g, "").slice(0, 6).toUpperCase();
+
+      const name = formatName(rawName);
+
+      setOwnerInfo({
+        name,
+        initial: (name[0] ?? "U").toUpperCase(),
+      });
+
       // watcher-view: we REMOVE watcher section, so don't fetch watcher chips
       setWatchers([]);
       setLoading(false);
@@ -399,6 +423,25 @@ export default function MissionDetailPage() {
                   ) : (
                     // WATCHER VIEW: no add watcher, no delete, no mark satisfied, no watcher section
                     <div className="space-y-7">
+                      {/* Watching info banner */}
+                      {ownerInfo && (
+                        <div className="border-2 border-black bg-black px-6 py-5">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            WATCHING
+                          </div>
+
+                         <div className="mt-3 flex items-center gap-5">
+                           <div className="h-10 w-10 border-2 border-white bg-white grid place-items-center">
+                              <div className="text-2xl font-black">{ownerInfo.initial}</div>
+                           </div>
+
+                           <div className="text-3xl font-black text-white leading-tight">
+                             {ownerInfo.name}&apos;s Mission
+                           </div>
+                         </div>
+                       </div>
+                     )}
+
                       {/* Status + Title */}
                       <div className="space-y-5">
                         <div className="inline-flex items-center border-2 border-black px-3 py-1 text-[10px] font-black uppercase tracking-widest">
