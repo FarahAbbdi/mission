@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎯 Goal Accountability & Milestone Platform
 
-## Getting Started
+A full-stack goal tracking system where users define long-term goals (“missions”), break them into milestones, log progress over time, and share visibility with peers for accountability.
 
-First, run the development server:
+Built with **Next.js, Supabase (PostgreSQL), Tailwind, and Vercel**.
+
+---
+
+## ✨ Features
+
+- Structured goal (“mission”) creation and tracking  
+- Milestone decomposition and completion flow  
+- Timestamped progress logs  
+- Watchers for shared visibility and accountability  
+- Secure multi-user access via Supabase Auth + Row-Level Security  
+
+---
+
+## 🖥️ Application Pages
+
+### 🔐 Landing / Login  
+Authentication entry point to access personal missions.
+
+### 📊 Mission Dashboard  
+Overview of all missions with status and progress indicators.
+
+### 🎯 Mission Detail  
+Detailed mission view with milestones, logs, and watchers.
+
+---
+
+## 🧪 Demo Account
+
+You can explore the app using the demo credentials:  
+**Email:** demo@mission.app  
+**Password:** demo123  
+
+---
+
+## 🧱 Tech Stack
+
+- **Frontend:** Next.js (App Router), React, Tailwind  
+- **Backend/Data:** Supabase (PostgreSQL, Auth, RLS)  
+- **Deployment:** Vercel  
+- **Architecture:** Client ↔ Supabase REST APIs  
+
+---
+
+## 📸 Screenshots
+
+### Mission Dashboard
+![Mission Dashboard](./screenshots/dashboard.png)
+
+### Mission Detail
+![Mission Detail](./screenshots/mission.png)
+
+---
+
+## 🚀 Running Locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+NEXT_PUBLIC_SUPABASE_URL=your_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📈 Future Improvements
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Notifications for milestone updates  
+- Activity feed for watched missions  
+- Progress visualisation across milestones  
+- Mobile optimisation  
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 👤 Author
 
-To learn more about Next.js, take a look at the following resources:
+**Farah Abdi**  
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📄 License
 
-## Deploy on Vercel
+Personal project for portfolio use.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
